@@ -1,0 +1,38 @@
+div#qstats {
+    display: flex;
+}
+
+div#question,
+#btns {
+    border: 1px solid gray;
+    border-radius: 5px;
+}
+
+div#question {
+    flex: 75%;
+    padding: 5px 5px 45px 5px;
+}
+
+div#btns {
+    flex: 25%;
+    padding: 5px;
+}
+
+button {
+    position: absolute;
+    padding: 5px;
+    font-weight: bold;
+}
+
+button:hover {
+    cursor: pointer;
+    color: green;
+}
+
+button#next {
+    margin-left: 150px;
+}
+
+button#subtn {
+    margin-left: 450px;
+}

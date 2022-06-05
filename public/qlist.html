@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examination</title>
+    <link rel="stylesheet" href="./css/qlist.css">
+</head>
+
+<body>
+    <p>Qstats</p>
+    <div id="qstats">
+
+        <div id="question">
+            <form action="/exam/ans" method="post">
+                <table></table>
+                <hr>
+                <button type="submit" id="next">Next &gt;&gt;</button>
+            </form>
+            <div id="exmbtns">
+                <form action="/exam/back" method="get">
+                    <button type="submit" id="prev">&lt;&lt; Previous</button>
+                </form>
+
+                <form action="/exam/submit" method="get">
+                    <button type="submit" id="subtn">SUBMIT</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="btns">
+            <figure>
+                <img src="#" alt="Candidate Photo">
+                <figcaption>
+                    <p></p>
+                    <p></p>
+                </figcaption>
+            </figure>
+        </div>
+    </div>
+</body>
+
+</html>

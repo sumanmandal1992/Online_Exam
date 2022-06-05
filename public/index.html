@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="./css/index.css">
+</head>
+
+<body>
+    <fieldset>
+        <legend>Candidate Credentials</legend>
+        <form action="/login" method="post">
+            <table>
+                <tr>
+                    <td class="left">Registration Number:</td>
+                    <td class="right regwarn">
+                        <input type="text" id="regno" name="regno" placeholder="Registration Number" required>
+                    </td>
+                </tr>
+                <tr>
+                    <td class=" left">Date of Birth:
+                    </td>
+                    <td class="right dobwarn">
+                        <input type="text" id="dob" name="dob" placeholder="YYYY-MM-DD" required>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="left"></td>
+                    <td class="right">
+                        <button type="submit" id="subtn">SUBMIT</button>
+                        <label for="msg" id="msg" style="color: red; font-weight: bold;"></label>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="left">Candidate Name:</td>
+                    <td class="right">
+                        <label for="name" id="cname"></label>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="left">Subject Code:</td>
+                    <td class="right">
+                        <label for="subcode" id="subcode"></label>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="left">Photo:</td>
+                    <td class="right">
+                        <img src="#" alt="Candidate photo">
+                    </td>
+                </tr>
+            </table>
+        </form>
+        <form action="/exam" method="get">
+            <button type="submit" class="exam">Start Exam</button>
+        </form>
+    </fieldset>
+</body>
+
+</html>

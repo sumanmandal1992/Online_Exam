@@ -1,0 +1,65 @@
+legend {
+    font-size: 25px;
+    font-weight: bold;
+    font-style: italic;
+}
+
+fieldset {
+    border-color: darkgray;
+    border-width: 5px;
+    border-radius: 10px;
+    border-style: groove;
+}
+
+table,
+tr,
+td {
+    border: 2px solid black;
+    border-collapse: collapse;
+    border-width: 3px;
+    width: 100%;
+}
+
+td {
+    text-align: left;
+    padding: 5px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+td.left {
+    width: 25%;
+    padding: 15px 15px 15px 5px;
+}
+
+td.right {
+    width: 75%;
+}
+
+input {
+    border-radius: 5px;
+    padding: 10px;
+    font-size: 18px;
+}
+
+button {
+    padding: 5px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.exam {
+    float: right;
+    margin-top: 5px;
+}
+
+#subtn:hover,
+.exam:hover {
+    cursor: pointer;
+}
+
+img {
+    height: 2in;
+    width: 2in;
+    border: 1px solid gray;
+}
