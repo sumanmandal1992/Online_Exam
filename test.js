@@ -4,26 +4,25 @@ const pool = mariadb.createPool({
     host: 'localhost',
     user: 'tmp',
     password: 'Suman@1992',
-    database: 'tmp'
+    database: 'sessiondb',
+    connectionLimit: 1,
 });
 
-async function asyncFunction(query) {
+async function main() {
     let conn;
     try {
         conn = await pool.getConnection();
-        //const rows = await conn.query("SELECT 1 as val");
-        //console.log(rows); //[ {val: 1}, meta: ... ]
-        const rows = await conn.query(query);
-        console.log(rows); // { affectedRows: 1, insertId: 1, warningStatus: 0 }
+        const res = await conn.query("SELECT * FROM session");
+        console.log(res); // { affectedRows: 1, insertId: 1, warningStatus: 0 }
 
     } catch (err) {
-        throw err;
-    } finally {
-        if (conn) return conn.end();
+        // Manage errors
+        console.log("SQL error in establishing a connection: ", err);
 
+    } finally {
+        // Close connection
+        if (conn) conn.end();
     }
-    pool.end();
 }
 
-const query = 'SELECT * FROM std_info';
-asyncFunction(query);
+main();
