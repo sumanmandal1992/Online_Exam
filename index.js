@@ -10,14 +10,21 @@ const db = require('./modules/sqlite');
 const app = express();
 
 
+/*****************
+ * Mariadb pool. *
+ * ***************/
 const pool = mariadb.createPool({
     host: 'localhost',
     user: 'tmp',
     password: 'Suman@1992',
-    database: 'tmp'
+    database: 'sessiondb',
+    connectionLimit: 5,
 });
 
 
+/****************************
+ * Mariadb session storage. *
+ ****************************/
 app.use(session({
     store: new MariaDBStore({
         user: 'tmp',
@@ -32,6 +39,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+
+/*******************
+ * Send index page *
+ *******************/
 app.get('/', (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
     res.statusCode = 200;
@@ -42,6 +53,9 @@ app.get('/', (req, res) => {
 });
 
 
+/************************
+ * Gathering login info *
+ ************************/
 app.post('/login', (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
     const stddb = path.join(__dirname, 'database', 'students.db');
@@ -75,6 +89,7 @@ app.post('/login', (req, res) => {
                     }
 
                     $('#regno').attr('value', regno);
+                    //$('#hidregno').attr('value', regno);
                     $('#dob').attr('value', dob);
                     $('#cname').text(row.name);
                     $('#subcode').text(row.sub_code);
@@ -105,13 +120,70 @@ app.post('/login', (req, res) => {
 });
 
 
-app.get('/exam', (req, res) => {
+/**************************************
+ * Check login session and start exam *
+ **************************************/
+app.get('/exam', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/html');
-    res.sendFile(qlist, (err) => {
-        if (err) console.log(err);
-    });
+    const index = path.join(__dirname, 'public', 'index.html');
+    let conn;
+
+
+    try {
+        conn = await pool.getConnection();
+        const row = await conn.query("SELECT session FROM session");
+        const session = JSON.parse(row[0].session);
+        if (session.isAuth) {
+            // Check existance of file...
+            let docstats;
+            try {
+                docstats = fs.statSync(qlist);
+            } catch (e) { }
+
+            if (docstats.isFile()) {
+                fs.readFile(qlist, 'utf-8', (err, data) => {
+                    if (err) console.log(err);
+
+                    const $ = cheerio.load(data);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/html');
+
+                    $('.qstat').text(`Question 1 of 50`);
+                    res.send($.html());
+                });
+            } else {
+                res.statusCode = 400;
+                res.setHeader('Content-Type', 'text/html');
+                res.send("Document not found...");
+            }
+        }
+
+
+    } catch (err) {
+        // Manage errors
+        console.log("SQL error in establishing connection:", err);
+
+        let docstats;
+        try {
+            docstats = fs.statSync(index);
+        } catch (e) { }
+        if (docstats.isFile()) {
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/html');
+            res.sendFile(index, (err) => {
+                if (err) console.log(err);
+            });
+        } else {
+            res.statusCode = 400;
+            res.setHeader('Content-Type', 'text/html');
+            res.send("Document not found...");
+        }
+
+
+    } finally {
+        // Close connection
+        if (conn) conn.end();
+    }
 });
 
 

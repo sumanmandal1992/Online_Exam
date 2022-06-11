@@ -36,3 +36,8 @@ button#next {
 button#subtn {
     margin-left: 450px;
 }
+
+img {
+    height: 2in;
+    width: 1.5in;
+}

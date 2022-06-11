@@ -12,8 +12,8 @@ async function main() {
     let conn;
     try {
         conn = await pool.getConnection();
-        const res = await conn.query("SELECT * FROM session");
-        console.log(res); // { affectedRows: 1, insertId: 1, warningStatus: 0 }
+        const res = await conn.query("DELETE FROM sessiondb.session");
+        console.log(JSON.parse(res[0].session).isAuth); // { affectedRows: 1, insertId: 1, warningStatus: 0 }
 
     } catch (err) {
         // Manage errors
