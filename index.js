@@ -6,6 +6,8 @@ const MariaDBStore = require('express-session-mariadb-store');
 const cheerio = require('cheerio');
 const fs = require('fs');
 const db = require('./modules/sqlite');
+const { stdin } = require('process');
+const { isMap } = require('util/types');
 
 const app = express();
 
@@ -79,6 +81,7 @@ app.post('/login', (req, res) => {
 
                 if (row.dob === dob) {
                     req.session.isAuth = true;
+
                     let photo = path.join('images', (regno + '.jpg'));
 
                     let imgstats;
@@ -109,8 +112,20 @@ app.post('/login', (req, res) => {
                     res.send($.html());
                 }
             });
-
             db.close();
+
+            if (req.sessionID.length > 0) {
+                pool.getConnection()
+                    .then(conn => {
+                        conn.query("INSERT INTO logged_user(uid, regno) values(?, ?)", [req.sessionID, regno])
+                            .catch(err => {
+                                console.log(err);
+                            });
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    });
+            }
         });
     } else {
         res.statusCode = 404;
@@ -131,14 +146,27 @@ app.get('/exam', async (req, res) => {
 
     try {
         conn = await pool.getConnection();
-        const row = await conn.query("SELECT session FROM session");
-        const session = JSON.parse(row[0].session);
+        const ssn = await conn.query("SELECT session FROM session");
+        const session = JSON.parse(ssn[0].session);
+        const questions = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [1]);
+        const regno = await conn.query("SELECT regno FROM logged_user WHERE uid = ?", [req.sessionID]);
+        const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
+        const qlen = parseInt(len[0].qlen, 10);
+        console.log(qlen);
+
         if (session.isAuth) {
             // Check existance of file...
+            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let imgstats;
+            try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            if (!imgstats.isFile()) {
+                uimg = path.join('images', (regno[0].regno + '.png'));
+                try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            }
+
+
             let docstats;
-            try {
-                docstats = fs.statSync(qlist);
-            } catch (e) { }
+            try { docstats = fs.statSync(qlist); } catch (e) { }
 
             if (docstats.isFile()) {
                 fs.readFile(qlist, 'utf-8', (err, data) => {
@@ -148,7 +176,70 @@ app.get('/exam', async (req, res) => {
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'text/html');
 
-                    $('.qstat').text(`Question 1 of 50`);
+                    $('.qstat').text(`Question ${questions[0].q_id} of 50`);
+
+                    const qns = `<tr>
+                                    <td>${questions[0].q_id}.</td>
+                                    <td>${questions[0].questions}</td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>
+                                        <label for="chA">A)</label>
+                                        <input type="radio" name="choice" value="A">
+                                        ${questions[0].chA}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>
+                                        <label for="chB">B)</label>
+                                        <input type="radio" name="choice" value="B">
+                                        ${questions[0].chB}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td>
+                                        <label for="chC">C)</label>
+                                        <input type="radio" name="choice" value="C">
+                                        ${questions[0].chC}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td></td>
+                                    <td> 
+                                        <label for="chD">D)</label>
+                                        <input type="radio" name="choice" value="D">
+                                        ${questions[0].chD}
+                                    </td>
+                                </tr>`;
+                    $('table').append(qns);
+
+                    if (imgstats.isFile()) $('img').attr('src', uimg);
+                    $('#regno').text(regno[0].regno);
+
+                    let btns1 = '<div id="btns1">';
+                    let btns2 = '<div id="btns2"';
+                    let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
+                    if (qlen <= 50) {
+                        for (let i = 1; i <= qlen; i++) {
+                            btns1 += `<input type="button" value="${i}">`;
+                        }
+                        btns1 += '</div>';
+                        $('.btns').append(btns1);
+                    } else {
+                        for (let i = 1; i <= 50; i++) {
+                            btns1 += `<input type="button" value="${i}">`;
+                        }
+                        btns1 += '</div>';
+                        for (let i = 50; i <= qlen; i++) {
+                            btns2 += `<input type="button" value="${i}">`;
+                        }
+                        btns2 += '</div>';
+                        $('.btns').append(btns1 + btns2 + btns3);
+                    }
+
                     res.send($.html());
                 });
             } else {
@@ -187,7 +278,7 @@ app.get('/exam', async (req, res) => {
 });
 
 
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8000;
 app.listen(port, () => {
     console.log(`Listening at port ${port}...`);
 });

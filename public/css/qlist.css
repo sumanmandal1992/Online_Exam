@@ -16,6 +16,7 @@ div#question {
 div#btns {
     flex: 25%;
     padding: 5px;
+    text-align: center;
 }
 
 button {
@@ -38,6 +39,28 @@ button#subtn {
 }
 
 img {
-    height: 2in;
+    height: 1.7in;
     width: 1.5in;
+}
+
+.btns>#btns1>input,
+.btns>#btns2>input,
+.btns>input {
+    padding: 5px;
+    margin: 5px;
+    width: 47px;
+}
+
+.btns>input {
+    width: 55px;
+}
+
+.btns>#btns1>input:hover,
+.btns>#btns2>input:hover,
+.btns>input:hover {
+    cursor: pointer;
+    background-color: rgb(0, 17, 255);
+    font-weight: bold;
+    font-style: italic;
+    color: rgb(255, 255, 255);
 }

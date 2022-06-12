@@ -34,14 +34,33 @@
             <figure>
                 <img src="#" alt="Candidate Photo">
                 <figcaption>
-                    <p></p>
-                    <p></p>
+                    <p id="regno"></p>
+                    <p id="name"></p>
                 </figcaption>
             </figure>
+            <div class="btns"></div>
         </div>
     </div>
 
     <script type="text/javascript" lang="javascript" src="./js/browserClosingEvent.js"></script>
+    <script type="text/javascript" lang="javascript">
+        if (document.getElementById('btns2') !== null)
+            document.getElementById('btns2').style.display = 'none';
+        function NP() {
+            let btns1 = document.getElementById('btns1');
+            let btns2 = document.getElementById('btns2');
+            let btnval = document.getElementById('np').value;
+            if (btnval === 'Next>>' && btns2.style.display === 'none') {
+                document.getElementById('np').setAttribute('value', '<<Prev');
+                btns1.style.display = 'none';
+                btns2.style.display = 'block';
+            } else {
+                document.getElementById('np').setAttribute('value', 'Next>>');
+                btns1.style.display = 'block';
+                btns2.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 
 </html>

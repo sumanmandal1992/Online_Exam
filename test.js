@@ -8,21 +8,17 @@ const pool = mariadb.createPool({
     connectionLimit: 1,
 });
 
-async function main() {
-    let conn;
-    try {
-        conn = await pool.getConnection();
-        const res = await conn.query("DELETE FROM sessiondb.session");
-        console.log(JSON.parse(res[0].session).isAuth); // { affectedRows: 1, insertId: 1, warningStatus: 0 }
-
-    } catch (err) {
-        // Manage errors
-        console.log("SQL error in establishing a connection: ", err);
-
-    } finally {
-        // Close connection
-        if (conn) conn.end();
-    }
-}
-
-main();
+pool.getConnection()
+    .then(conn => {
+        conn.query("select * from session")
+            .then(rows => {
+                console.log(rows);
+                conn.end();
+            })
+            .catch(err => {
+                //handle query error
+            });
+    })
+    .catch(err => {
+        //handle connection error
+    });
