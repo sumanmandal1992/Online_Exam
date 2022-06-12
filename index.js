@@ -40,7 +40,7 @@ app.use(session({
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+let tracker = 1;
 
 
 /*******************
@@ -187,6 +187,7 @@ app.get('/exam', async (req, res) => {
 
                     $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
 
+                    // Desining question and choices for represent.
                     const qns = `<tr>
                                     <td>${question[0].q_id}.</td>
                                     <td>${question[0].questions}</td>
@@ -228,6 +229,7 @@ app.get('/exam', async (req, res) => {
                     if (imgstats.isFile()) $('img').attr('src', ('../' + uimg));
                     $('#regno').text(regno[0].regno);
 
+                    // Creating buttons for tracking questions.
                     let btns1 = '<form method="post" action="/exam/btns"><div id="btns1">';
                     let btns2 = '<div id="btns2">';
                     let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
@@ -291,7 +293,8 @@ app.get('/exam', async (req, res) => {
 /**********************
  * Handle back button *
  **********************/
-app.get('/exam/back', (req, res) => {
+app.get('/exam/prev', (req, res) => {
+    if (tracker > 1) tracker--;
     const qlist = path.join(__dirname, 'public', 'qlist.html');
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/html');
@@ -303,12 +306,23 @@ app.get('/exam/back', (req, res) => {
 /**********************
  * Handle next button *
  **********************/
-app.post('/exam/ans', (req, res) => {
-    console.log(req.url);
+app.post('/exam/next', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/html');
-    res.sendFile(qlist);
+    let filestats;
+    try { filestats = fs.statSync(qlist); } catch (e) { }
+    if (filestats.isFile()) {
+        let conn;
+        try {
+            conn = await pool.getConnection();
+            const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
+            const qlen = parseInt(len[0].qlen, 10);
+
+            if (tracker < qlen) tracker++;
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/html');
+            res.sendFile(qlist);
+        } catch (err) { } finally { }
+    }
 });
 
 
@@ -322,6 +336,7 @@ app.post('/exam/btns', async (req, res) => {
     try { filestats = fs.statSync(qlist); } catch (err) { }
 
     const { btnval } = req.body;
+    tracker = btnval;
     console.log(btnval);
 
 
