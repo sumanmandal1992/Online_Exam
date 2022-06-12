@@ -310,6 +310,8 @@ app.post('/exam/next', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
     let filestats;
     try { filestats = fs.statSync(qlist); } catch (e) { }
+
+
     if (filestats.isFile()) {
         let conn;
         try {
@@ -320,8 +322,25 @@ app.post('/exam/next', async (req, res) => {
             if (tracker < qlen) tracker++;
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/html');
-            res.sendFile(qlist);
-        } catch (err) { } finally { }
+            res.sendFile(qlist, (err) => {
+                if (err) console.log("Next button error: ", err);
+            });
+        } catch (err) {
+            if (err) console.log("Next button SQL error in establishing connection: ", err);
+
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/html');
+            res.sendFile(qlist, (err) => {
+                if (err) console.log("Next button error in catch: ", err);
+            });
+
+        } finally {
+            if (conn) conn.end();
+        }
+    } else {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'text/html');
+        res.send("Next button Page not found...");
     }
 });
 
@@ -436,11 +455,11 @@ app.post('/exam/btns', async (req, res) => {
             });
 
         } catch (err) {
-            if (err) console.log(err);
+            if (err) console.log("Buttons SQL error in establishing connection: ", err);
             res.statusCode = 200;
             res.setHeader('Content-Type', 'text/html');
             res.sendFile(qlist, (err) => {
-                if (err) console.log(err);
+                if (err) console.log("Buttons file error in catch: ", err);
             });
 
         } finally {
@@ -449,7 +468,7 @@ app.post('/exam/btns', async (req, res) => {
     } else {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'text/html');
-        res.send('Document not found...');
+        res.send('Buttons Page not found...');
     }
 });
 
