@@ -43,8 +43,8 @@ img {
     width: 1.5in;
 }
 
-.btns>#btns1>input,
-.btns>#btns2>input,
+#btns1>input,
+#btns2>input,
 .btns>input {
     padding: 5px;
     margin: 5px;
@@ -55,8 +55,8 @@ img {
     width: 55px;
 }
 
-.btns>#btns1>input:hover,
-.btns>#btns2>input:hover,
+#btns1>input:hover,
+#btns2>input:hover,
 .btns>input:hover {
     cursor: pointer;
     background-color: rgb(0, 17, 255);
