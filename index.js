@@ -5,7 +5,6 @@ const mariadb = require('mariadb');
 const MariaDBStore = require('express-session-mariadb-store');
 const cheerio = require('cheerio');
 const fs = require('fs');
-const db = require('./modules/sqlite');
 const { stdin } = require('process');
 const { isMap } = require('util/types');
 
@@ -50,6 +49,7 @@ app.get('/', (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
     let filestats;
     try { filestats = fs.statSync(index); } catch (e) { }
+
     if (filestats.isFile()) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
@@ -67,28 +67,37 @@ app.get('/', (req, res) => {
 /************************
  * Gathering login info *
  ************************/
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
     const stddb = path.join(__dirname, 'database', 'students.db');
     let docstats;
-    try {
-        docstats = fs.statSync(index);
-    } catch (e) { }
+    try { docstats = fs.statSync(index); } catch (e) { }
 
     const { regno, dob } = req.body;
+    const isodob = new Date(dob);
+    const htmdob = isodob.toISOString().split('T')[0];
 
     if (docstats.isFile()) {
-        fs.readFile(index, 'utf-8', (err, data) => {
-            if (err) console.log(err);
+        let conn;
+        try {
+            conn = await pool.getConnection();
+            const stdinfo = await conn.query('SELECT * FROM std_info WHERE reg_no = ?', [regno]);
 
-            db.open(stddb);
+            // Calculate date
+            const isodate = new Date(stdinfo[0].dob);
+            const year = isodate.getFullYear();
+            const month = String(isodate.getMonth() + 1).padStart(2, 0);
+            const day = String(isodate.getDate()).padStart(2, 0);
+            const dbdob = `${year}-${month}-${day}`;
+            //console.log("Date: ", dbdob);
+            // End date calculateion
 
-            const query = `SELECT * FROM std_info WHERE reg_no=?`;
-            db.get(query, regno, (row) => {
+            fs.readFile(index, 'utf-8', (err, data) => {
+                if (err) console.log(err);
 
                 const $ = cheerio.load(data);
 
-                if (row.dob === dob) {
+                if (stdinfo[0] !== undefined && dbdob === htmdob) {
                     req.session.isAuth = true;
 
                     let photo = path.join('images', (regno + '.jpg'));
@@ -101,10 +110,9 @@ app.post('/login', (req, res) => {
                     }
 
                     $('#regno').attr('value', regno);
-                    //$('#hidregno').attr('value', regno);
                     $('#dob').attr('value', dob);
-                    $('#cname').text(row.name);
-                    $('#subcode').text(row.sub_code);
+                    $('#cname').text(stdinfo[0].name);
+                    $('#subcode').text(stdinfo[0].sub_code);
                     if (imgstats.isFile()) $('img').attr('src', photo);
 
                     res.statusCode = 200;
@@ -120,22 +128,29 @@ app.post('/login', (req, res) => {
                     res.setHeader('Content-Type', 'text/html');
                     res.send($.html());
                 }
+
             });
-            db.close();
 
             if (req.sessionID.length > 0) {
-                pool.getConnection()
-                    .then(conn => {
-                        conn.query("INSERT INTO logged_user(uid, regno) values(?, ?)", [req.sessionID, regno])
-                            .catch(err => {
-                                console.log(err);
-                            });
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
+                const logged_session_id = await conn.query('SELECT uid FROM logged_user WHERE regno = ?', [regno]);
+                if (logged_session_id[0].uid !== req.sessionID) {
+                    console.log("New session started");
+                    await conn.query("UPDATE logged_user SET uid = ? WHERE regno = ?", [req.sessionID, regno])
+                }
             }
-        });
+
+        } catch (err) {
+            if (err) console.log(err);
+            /*
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'text/html');
+            res.sendFile(index, (err) => {
+                if (err) console.log(err);
+            });*/
+            res.redirect('/');
+        } finally {
+            if (conn) conn.end();
+        }
     } else {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'text/html');
@@ -263,23 +278,26 @@ app.get('/exam', async (req, res) => {
 
     } catch (err) {
         // Manage errors
+        /*     
         console.log("SQL error in establishing connection:", err);
-
-        let docstats;
-        try {
-            docstats = fs.statSync(index);
-        } catch (e) { }
-        if (docstats.isFile()) {
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-            res.sendFile(index, (err) => {
-                if (err) console.log(err);
-            });
-        } else {
-            res.statusCode = 404;
-            res.setHeader('Content-Type', 'text/html');
-            res.send("Document not found...");
-        }
+        
+                let docstats;
+                try {
+                    docstats = fs.statSync(index);
+                } catch (e) { }
+                if (docstats.isFile()) {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/html');
+                    res.sendFile(index, (err) => {
+                        if (err) console.log(err);
+                    });
+                } else {
+                    res.statusCode = 404;
+                    res.setHeader('Content-Type', 'text/html');
+                    res.send("Document not found...");
+                }
+        */
+        res.redirect('/');
 
 
     } finally {
