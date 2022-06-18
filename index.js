@@ -134,20 +134,16 @@ app.post('/login', async (req, res) => {
             if (req.sessionID.length > 0) {
                 const logged_session_id = await conn.query('SELECT uid FROM logged_user WHERE regno = ?', [regno]);
                 if (logged_session_id[0].uid !== req.sessionID) {
-                    console.log("New session started");
+                    console.log("New session started...");
                     await conn.query("UPDATE logged_user SET uid = ? WHERE regno = ?", [req.sessionID, regno])
                 }
             }
 
         } catch (err) {
             if (err) console.log(err);
-            /*
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-            res.sendFile(index, (err) => {
-                if (err) console.log(err);
-            });*/
+
             res.redirect('/');
+
         } finally {
             if (conn) conn.end();
         }
@@ -179,6 +175,7 @@ app.get('/exam', async (req, res) => {
         //console.log(req.url);
 
         if (session.isAuth) {
+
             // Check existance of file...
             let uimg = path.join('images', (regno[0].regno + '.jpg'));
             let imgstats;
@@ -191,6 +188,7 @@ app.get('/exam', async (req, res) => {
 
             let docstats;
             try { docstats = fs.statSync(qlist); } catch (e) { }
+            // End checking...
 
             if (docstats.isFile()) {
                 fs.readFile(qlist, 'utf-8', (err, data) => {
