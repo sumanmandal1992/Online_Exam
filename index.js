@@ -170,6 +170,7 @@ app.get('/exam', async (req, res) => {
         const session = JSON.parse(ssn[0].session);
         const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [1]);
         const regno = await conn.query("SELECT regno FROM logged_user WHERE uid = ?", [req.sessionID]);
+        const timesec = await conn.query("SELECT timesec FROM timer WHERE regno = ?", [regno[0].regno]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
         const qlen = parseInt(len[0].qlen, 10);
         //console.log(req.url);
@@ -198,6 +199,7 @@ app.get('/exam', async (req, res) => {
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'text/html');
 
+                    $('#time').attr('value', timesec[0].timesec);
                     $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
 
                     // Desining question and choices for represent.
@@ -275,26 +277,9 @@ app.get('/exam', async (req, res) => {
 
 
     } catch (err) {
-        // Manage errors
-        /*     
+        // Manage errors  
         console.log("SQL error in establishing connection:", err);
-        
-                let docstats;
-                try {
-                    docstats = fs.statSync(index);
-                } catch (e) { }
-                if (docstats.isFile()) {
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'text/html');
-                    res.sendFile(index, (err) => {
-                        if (err) console.log(err);
-                    });
-                } else {
-                    res.statusCode = 404;
-                    res.setHeader('Content-Type', 'text/html');
-                    res.send("Document not found...");
-                }
-        */
+
         res.redirect('/');
 
 
