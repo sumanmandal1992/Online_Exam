@@ -13,13 +13,13 @@
 </head>
 
 <body>
-    <input type="hidden" id="time" value="600">
+    <input type="hidden" id="time" value="">
     <div class="exam_info">
         <div id="logo">
             <img src="#" alt="logo" id="logo">
         </div>
         <div id="exam_stats">Exam started...</div>
-        <div id="timer">hh:mm:ss</div>
+        <div id="timer">00:00:00</div>
     </div>
 
     <p class="qstat">Qstats</p>
@@ -27,16 +27,19 @@
 
         <div id="question">
             <form action="/exam/next" method="post">
+                <input type="hidden" name="time" id="nexttime" value="">
                 <table></table>
                 <hr>
-                <button type="submit" id="next">Next &gt;&gt;</button>
+                <button type="submit" id="next">Attend & Next &gt;&gt;</button>
             </form>
             <div id="exmbtns">
                 <form action="/exam/prev" method="get">
+                    <input type="hidden" name="time" id="prevtime" value="">
                     <button type="submit" id="prev">&lt;&lt; Previous</button>
                 </form>
 
                 <form action="/exam/submit" method="get">
+                    <input type="hidden" name="time" id="submittime" value="">
                     <button type="submit" id="subtn">SUBMIT</button>
                 </form>
             </div>
@@ -44,7 +47,7 @@
 
         <div id="btns">
             <figure>
-                <img src="#" alt="Candidate Photo">
+                <img src="#" alt="Candidate Photo" id="uimg">
                 <figcaption>
                     <p id="regno"></p>
                     <p id="name"></p>
@@ -56,6 +59,7 @@
 
     <script type="text/javascript" lang="javascript" src="../js/browserClosingEvent.js"></script>
     <script type="text/javascript" lang="javascript" src="../js/timer.js"></script>
+
 
     <script type="text/javascript" lang="javascript">
         if (document.getElementById('btns2') !== null)

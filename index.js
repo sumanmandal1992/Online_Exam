@@ -112,7 +112,7 @@ app.post('/login', async (req, res) => {
                     $('#regno').attr('value', regno);
                     $('#dob').attr('value', dob);
                     $('#cname').text(stdinfo[0].name);
-                    $('#subcode').text(stdinfo[0].sub_code);
+                    $('#subcode').text(stdinfo[0].course);
                     if (imgstats.isFile()) $('img').attr('src', photo);
 
                     res.statusCode = 200;
@@ -132,10 +132,11 @@ app.post('/login', async (req, res) => {
             });
 
             if (req.sessionID.length > 0) {
-                const logged_session_id = await conn.query('SELECT uid FROM logged_user WHERE regno = ?', [regno]);
-                if (logged_session_id[0].uid !== req.sessionID) {
+                const logged_session_id = await conn.query('SELECT sid FROM logged_user WHERE regno = ?', [regno]);
+                if (logged_session_id[0].sid !== req.sessionID) {
                     console.log("New session started...");
-                    await conn.query("UPDATE logged_user SET uid = ? WHERE regno = ?", [req.sessionID, regno])
+                    await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
+                    await conn.query("UPDATE logged_user SET sid = ? WHERE regno = ?", [req.sessionID, regno])
                 }
             }
 
@@ -159,25 +160,29 @@ app.post('/login', async (req, res) => {
  * Check login session and start exam *
  **************************************/
 app.get('/exam', async (req, res) => {
+    tracker = 1;
     const qlist = path.join(__dirname, 'public', 'qlist.html');
     const index = path.join(__dirname, 'public', 'index.html');
+
+
     let conn;
-
-
     try {
         conn = await pool.getConnection();
-        const ssn = await conn.query("SELECT session FROM session");
+        const ssn = await conn.query("SELECT session FROM session WHERE sid = ?", [req.sessionID]);
         const session = JSON.parse(ssn[0].session);
-        const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [1]);
-        const regno = await conn.query("SELECT regno FROM logged_user WHERE uid = ?", [req.sessionID]);
+        const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [1]); /* 1st question */
+        const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
         const timesec = await conn.query("SELECT timesec FROM timer WHERE regno = ?", [regno[0].regno]);
+        if (timesec[0] === undefined)
+            await conn.query("INSERT INTO timer values(?, ?, ?)", [regno[0].regno, 3600, 1]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
         const qlen = parseInt(len[0].qlen, 10);
-        //console.log(req.url);
+        //console.log(timesec[0].timesec);
+
 
         if (session.isAuth) {
 
-            // Check existance of file...
+            // Check existance of image file...
             let uimg = path.join('images', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
@@ -199,7 +204,7 @@ app.get('/exam', async (req, res) => {
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'text/html');
 
-                    $('#time').attr('value', timesec[0].timesec);
+                    if (timesec[0] !== undefined) $('#time').attr('value', timesec[0].timesec);
                     $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
 
                     // Desining question and choices for represent.
@@ -241,7 +246,8 @@ app.get('/exam', async (req, res) => {
                                 </tr>`;
                     $('table').append(qns);
 
-                    if (imgstats.isFile()) $('img').attr('src', ('../' + uimg));
+                    if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+                    $('#logo').attr('src', '../images/logo.png');
                     $('#regno').text(regno[0].regno);
 
                     // Creating buttons for tracking questions.
@@ -294,12 +300,127 @@ app.get('/exam', async (req, res) => {
 /**********************
  * Handle back button *
  **********************/
-app.get('/exam/prev', (req, res) => {
-    if (tracker > 1) tracker--;
+app.get('/exam/prev', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'text/html');
-    res.sendFile(qlist);
+    let filestats = false;
+    try { filestats = fs.statSync(qlist); } catch (e) { }
+
+
+    if (filestats) {
+        if (tracker > 1) --tracker;
+        let conn;
+        try {
+            conn = await pool.getConnection();
+            const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
+            const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+            const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
+            const qlen = parseInt(len[0].qlen, 10);
+
+
+            // Check existance of image file...
+            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let imgstats;
+            try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            if (!imgstats.isFile()) {
+                uimg = path.join('images', (regno[0].regno + '.png'));
+                try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            }
+            // End checking...
+
+
+            fs.readFile(qlist, 'utf-8', (err, data) => {
+                if (err) console.error(err);
+
+                const $ = cheerio.load(data);
+
+                $('#logo').attr('src', '../images/logo.png');
+                $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                $('#regno').text(regno[0].regno);
+                if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+
+
+                // Desining question and choices for represent.
+                const qns = `<tr>
+                                <td>${question[0].q_id}.</td>
+                                <td>${question[0].questions}</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chA">A)</label>
+                                    <input type="radio" name="choice" value="A">
+                                    ${question[0].chA}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chB">B)</label>
+                                    <input type="radio" name="choice" value="B">
+                                    ${question[0].chB}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chC">C)</label>
+                                    <input type="radio" name="choice" value="C">
+                                    ${question[0].chC}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td> 
+                                    <label for="chD">D)</label>
+                                    <input type="radio" name="choice" value="D">
+                                    ${question[0].chD}
+                                </td>
+                            </tr>`;
+                $('table').append(qns);
+
+
+                // Creating buttons for tracking questions.
+                let btns1 = '<form method="post" action="/exam/btns"><div id="btns1">';
+                let btns2 = '<div id="btns2">';
+                let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
+                if (qlen <= 50) {
+                    for (let i = 1; i <= qlen; i++) {
+                        btns1 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns1 += '</div></form>';
+                    $('.btns').append(btns1);
+                } else {
+                    for (let i = 1; i <= 50; i++) {
+                        btns1 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns1 += '</div>';
+                    for (let i = 50; i <= qlen; i++) {
+                        btns2 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns2 += '</div></form>';
+                    $('.btns').append(btns1 + btns2 + btns3);
+                }
+
+
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                res.send($.html());
+            });
+
+        } catch (err) {
+            // Manage errors  
+            console.log("SQL error in establishing connection:", err);
+
+            res.redirect('/exam');
+
+        } finally {
+            // Close connection
+            if (conn) conn.end();
+        }
+
+    } else {
+        res.redirect('/exam');
+    }
 });
 
 
@@ -317,14 +438,100 @@ app.post('/exam/next', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
+            const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
+            const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
 
-            if (tracker < qlen) tracker++;
-            res.statusCode = 200;
-            res.setHeader('Content-Type', 'text/html');
-            res.sendFile(qlist, (err) => {
-                if (err) console.log("Next button error: ", err);
+
+            if (tracker < qlen) ++tracker;
+            // Check existance of image file...
+            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let imgstats;
+            try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            if (!imgstats.isFile()) {
+                uimg = path.join('images', (regno[0].regno + '.png'));
+                try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
+            }
+            // End checking...
+
+
+            fs.readFile(qlist, 'utf-8', (err, data) => {
+                if (err) console.log(err);
+
+                const $ = cheerio.load(data);
+
+                $('#logo').attr('src', '../images/logo.png');
+                $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                $('#regno').text(regno[0].regno);
+                if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+
+
+                // Desining question and choices for represent.
+                const qns = `<tr>
+                                <td>${question[0].q_id}.</td>
+                                <td>${question[0].questions}</td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chA">A)</label>
+                                    <input type="radio" name="choice" value="A">
+                                    ${question[0].chA}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chB">B)</label>
+                                    <input type="radio" name="choice" value="B">
+                                    ${question[0].chB}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td>
+                                    <label for="chC">C)</label>
+                                    <input type="radio" name="choice" value="C">
+                                    ${question[0].chC}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td></td>
+                                <td> 
+                                    <label for="chD">D)</label>
+                                    <input type="radio" name="choice" value="D">
+                                    ${question[0].chD}
+                                </td>
+                            </tr>`;
+                $('table').append(qns);
+
+                // Creating buttons for tracking questions.
+                let btns1 = '<form method="post" action="/exam/btns"><div id="btns1">';
+                let btns2 = '<div id="btns2">';
+                let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
+                if (qlen <= 50) {
+                    for (let i = 1; i <= qlen; i++) {
+                        btns1 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns1 += '</div></form>';
+                    $('.btns').append(btns1);
+                } else {
+                    for (let i = 1; i <= 50; i++) {
+                        btns1 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns1 += '</div>';
+                    for (let i = 50; i <= qlen; i++) {
+                        btns2 += `<input type="submit" name="btnval" value="${i}">`;
+                    }
+                    btns2 += '</div></form>';
+                    $('.btns').append(btns1 + btns2 + btns3);
+                }
+
+
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                res.send($.html());
             });
         } catch (err) {
             if (err) console.log("Next button SQL error in establishing connection: ", err);
