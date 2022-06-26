@@ -19,7 +19,14 @@
             <img src="#" alt="logo" id="logo">
         </div>
         <div id="exam_stats">Exam started...</div>
-        <div id="timer">00:00:00</div>
+        <div id="logout">
+            <form action="/logout" method="get">
+                <input type="submit" value="logout" id="logout">
+            </form>
+        </div>
+        <div id="timer">
+            00:00:00
+        </div>
     </div>
 
     <p class="qstat">Qstats</p>
@@ -57,9 +64,6 @@
         </div>
     </div>
 
-    <script type="text/javascript" lang="javascript" src="../js/browserClosingEvent.js"></script>
-    <script type="text/javascript" lang="javascript" src="../js/timer.js"></script>
-
 
     <script type="text/javascript" lang="javascript">
         if (document.getElementById('btns2') !== null)
@@ -79,6 +83,9 @@
             }
         }
     </script>
+
+    <script type="text/javascript" lang="javascript" src="../js/browserClosingEvent.js"></script>
+    <script type="text/javascript" lang="javascript" src="../js/timer.js"></script>
 </body>
 
 </html>

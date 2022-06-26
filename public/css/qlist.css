@@ -11,9 +11,10 @@ body {
 
 #logo {
     flex: 20%;
-    background-color: rebeccapurple;
-    text-align: center;
+    /*background-color: rebeccapurple;
+    text-align: center;*/
     align-self: center;
+    padding-left: 15px;
 }
 
 img#logo {
@@ -23,16 +24,35 @@ img#logo {
 
 #exam_stats {
     flex: 60%;
-    background-color: green;
+    /*background-color: green;*/
     text-align: center;
     align-self: center;
     text-decoration: solid;
     font-size: 20px;
 }
 
+#logout {
+    flex: 10%;
+    text-align: right;
+    align-self: center;
+    text-decoration: solid;
+}
+
+input#logout {
+    background-color: orange;
+    border: 1px solid darkgray;
+    font-size: 20px;
+}
+
+input#logout:hover {
+    cursor: pointer;
+    background-color: orangered;
+    color: white;
+}
+
 #timer {
-    flex: 20%;
-    background-color: blue;
+    flex: 10%;
+    /*background-color: blue;*/
     text-align: center;
     align-self: center;
     font-size: 20px;
