@@ -5,6 +5,7 @@ const timer = document.getElementById('timer');
 const nexttimeval = document.getElementById('nexttime');
 const prevtimeval = document.getElementById('prevtime');
 const submittimeval = document.getElementById('submittime');
+const btnstimeval = document.getElementById('btnstime');
 
 const timeStat = sessionStorage.getItem('time');
 if (timeStat > 0) time = timeStat;
@@ -30,4 +31,5 @@ function countDown() {
     nexttimeval.setAttribute('value', time.toString());
     prevtimeval.setAttribute('value', time.toString());
     submittimeval.setAttribute('value', time.toString());
+    btnstimeval.setAttribute('value', time.toString());
 }
