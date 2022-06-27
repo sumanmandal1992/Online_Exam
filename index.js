@@ -7,6 +7,7 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const { stdin, allowedNodeEnvironmentFlags } = require('process');
 const { isMap } = require('util/types');
+const { time } = require('console');
 
 const app = express();
 
@@ -133,16 +134,21 @@ app.post('/login', async (req, res) => {
             });
 
             if (req.sessionID.length > 0) {
-                const logged_session_id = await conn.query('SELECT sid FROM logged_user WHERE regno = ?', [regno]);
+                const logged_session_id = await conn.query("SELECT sid FROM loggedUser WHERE regno = ?", [regno]);
+                const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno]);
+                if (timer[0] === undefined)
+                    await conn.query("INSERT INTO timer VALUES(?, ?)", [regno, 3600]);
+
                 if (logged_session_id[0] === undefined) {
                     console.log("New session started...");
-                    await conn.query("INSERT INTO logged_user(sid, regno) VALUES(?, ?)", [req.sessionID, regno]);
-                    await conn.query("INSERT INTO timer VALUES(?, ?, ?)", [regno, 3600, 1]);
+                    await conn.query("INSERT INTO loggedUser(sid, regno, loggedStats) VALUES(?, ?, ?)", [req.sessionID, regno, 1]);
                 } else if (logged_session_id[0].sid !== req.sessionID) {
                     console.log("New session started, you come back...");
                     await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
-                    await conn.query("UPDATE logged_user SET sid = ? WHERE regno = ?", [req.sessionID, regno])
-                    await conn.query("UPDATE timer SET login_stat = ? WHERE regno = ?", [1, regno]);
+                    await conn.query("UPDATE loggedUser SET sid = ?, loggedStats = ? WHERE regno = ?", [req.sessionID, 1, regno])
+                } else {
+                    console.log("Existing session...");
+                    await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [1, regno]);
                 }
             }
 
@@ -378,33 +384,59 @@ function generateBtns(qlen, ansAll) {
     let btns2 = '<div id="btns2">';
     let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
     if (qlen <= 50) {
+        let indx = 0, qid = [];
+        for (let i = 0; i < qlen; i++) {
+            if (ansAll[i] !== undefined) {
+                if (ansAll[i].choice !== '') {
+                    qid.push(ansAll[i].qid);
+                    ++indx;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let track = 0;
         for (let i = 0; i < qlen; ++i) {
-            if (ansAll[i] === undefined)
-                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else if (ansAll[i].choice === '')
-                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else
+            if (qid[track] === (i + 1)) {
                 btns1 += `<input type="submit" name="btnval" value="${i + 1}" style="background-color: green;">`;
+                if (track < indx) ++track;
+            } else {
+                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
+            }
         }
         btns1 += '</div></form>';
         return btns1;
     } else {
+        let indx = 0, qid = [];
+        for (let i = 0; i < qlen; i++) {
+            if (ansAll[i] !== undefined) {
+                if (ansAll[i].choice !== '') {
+                    qid.push(ansAll[i].qid);
+                    ++indx;
+                }
+            } else {
+                break;
+            }
+        }
+
+        let track = 0;
         for (let i = 0; i < 50; ++i) {
-            if (ansAll[i] === undefined)
-                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else if (ansAll[i].choice === '')
-                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else
+            if (qid[track] === (i + 1)) {
                 btns1 += `<input type="submit" name="btnval" value="${i + 1}" style="background-color: green;">`;
+                if (track < indx) ++track;
+            } else {
+                btns1 += `<input type="submit" name="btnval" value="${i + 1}">`;
+            }
         }
         btns1 += '</div>';
         for (let i = 50; i < qlen; ++i) {
-            if (ansAll[i] === undefined)
-                btns2 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else if (ansAll[i].choice === '')
-                btns2 += `<input type="submit" name="btnval" value="${i + 1}">`;
-            else
+            if (qid[track] === (i + 1)) {
                 btns2 += `<input type="submit" name="btnval" value="${i + 1}" style="background-color: green;">`;
+                if (track < indx) ++track;
+            } else {
+                btns2 += `<input type="submit" name="btnval" value="${i + 1}">`;
+            }
         }
         btns2 += '</div></form>';
         return (btns1 + btns2 + btns3);
@@ -427,14 +459,15 @@ app.get('/exam', async (req, res) => {
         const ssn = await conn.query("SELECT session FROM session WHERE sid = ?", [req.sessionID]);
         const session = JSON.parse(ssn[0].session);
         const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]); /* 1st question */
-        const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+        const regno = await conn.query("SELECT * FROM loggedUser WHERE sid = ?", [req.sessionID]);
         const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno[0].regno]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
         const qlen = parseInt(len[0].qlen, 10);
+        let timesec = timer[0].timesec;
         //console.log(timesec[0].timesec);
 
 
-        if (session.isAuth && timer[0].login_stat === 1) {
+        if (session.isAuth && regno[0].loggedStats === 1) {
             // Create temporary answer table in database...
             await conn.query(`CREATE TABLE IF NOT EXISTS ${regno[0].regno}_tmp(
                                 qid INT(3) NOT NULL PRIMARY KEY,
@@ -464,8 +497,8 @@ app.get('/exam', async (req, res) => {
                     if (err) console.log(err);
 
                     const $ = cheerio.load(data);
-
-                    if (timer[0] !== undefined) $('#time').attr('value', timer[0].timesec);
+                    if (timesec < 0) timesec = 0;
+                    if (timer[0] !== undefined) $('#time').attr('value', timesec);
                     $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
 
                     // Desining question and choices for represent.
@@ -495,10 +528,11 @@ app.get('/exam', async (req, res) => {
                 res.setHeader('Content-Type', 'text/html');
                 res.send("Document not found...");
             }
+        } else {
+            res.redirect('/');
         }
 
-        await conn.query("UPDATE timer SET login_stat = ? WHERE regno = ?", [0, regno[0].regno]);
-
+        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
 
     } catch (err) {
         // Manage errors  
@@ -532,7 +566,7 @@ app.post('/exam/prev', async (req, res) => {
         try {
             conn = await pool.getConnection();
             const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
-            const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+            const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
@@ -616,7 +650,7 @@ app.post('/exam/next', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+            const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
             const dbCh = await conn.query(`SELECT choice FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
@@ -719,7 +753,7 @@ app.post('/exam/btns', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+            const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
             const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
@@ -789,6 +823,17 @@ app.post('/exam/btns', async (req, res) => {
 
 
 
+/*******************************************************************
+ * Logout from the exam, status will remain saved until next login *
+ *******************************************************************/
+app.get('/exam/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
+});
+
+
+
+
 /************************
  * Handle submit button *
  ************************/
@@ -796,22 +841,23 @@ app.get('/exam/submit', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const regno = await conn.query("SELECT regno FROM logged_user WHERE sid = ?", [req.sessionID]);
+        const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
         await conn.query(`CREATE TABLE IF NOT EXISTS ${regno[0].regno} AS SELECT * FROM ${regno[0].regno}_tmp`);
         await conn.query(`DROP TABLE ${regno[0].regno}_tmp`);
-        await conn.query("UPDATE timer SET timesec = ?, login_stats = ? WHERE regno = ?", [0, 0, regno[0].regno]);
+        await conn.query("UPDATE timer SET timesec = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
     } finally {
         if (conn) conn.end();
     }
-    const index = path.join(__dirname, 'public', 'submit.html');
+
+    const endExam = path.join(__dirname, 'public', 'endExam.html');
     let filestats = false;
-    try { filestats = fs.statSync(index); } catch (e) { }
+    try { filestats = fs.statSync(endExam); } catch (e) { }
     if (filestats) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
-        res.sendFile(index, (err) => {
+        res.sendFile(endExam, (err) => {
             if (err) console.log(err);
         });
     } else {
@@ -823,6 +869,48 @@ app.get('/exam/submit', async (req, res) => {
 
 
 
+app.get('/exam/autoSubmit', (req, res) => {
+    const submit = path.join(__dirname, 'public', 'submit.html')
+    let filestats = false;
+    try { filestats = fs.statSync(submit) } catch (e0) { }
+    if (filestats) {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/html');
+        res.sendFile(submit, (err) => {
+            if (err) console.log(err);
+        });
+    } else {
+        res.statusCode = 404;
+        res.setHeader('Content-Type', 'text/html');
+        res.send("Page not found...");
+    }
+});
+
+
+
+/*******************************
+ * Redirect to the login page. *
+ *******************************/
+app.get('/exam/end', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+        await conn.query("DELETE FROM timer WHERE regno = ?", [regno[0].regno]);
+    } catch (err) {
+        if (err) console.log(err);
+    } finally {
+        if (conn) conn.end();
+    }
+
+    req.session.destroy();
+    res.redirect('/');
+});
+
+
+/*********************************
+ * Listening server at the port. *
+ *********************************/
 const port = process.env.PORT || 8000;
 app.listen(port, () => {
     console.log(`Listening at port ${port}...`);

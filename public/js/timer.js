@@ -24,6 +24,7 @@ function countDown() {
     if (time <= 0) {
         clearInterval(interval);
         time = 0;
+        document.forms['autoSubmit'].submit();
     }
     time--;
     sessionStorage.setItem('time', time);
