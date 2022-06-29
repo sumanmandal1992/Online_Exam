@@ -3,9 +3,9 @@ const express = require('express');
 const session = require('express-session');
 const mariadb = require('mariadb');
 const MariaDBStore = require('express-session-mariadb-store');
+require('dotenv').config();
 const cheerio = require('cheerio');
 const fs = require('fs');
-const { stdin, allowedNodeEnvironmentFlags } = require('process');
 const { isMap } = require('util/types');
 const { time } = require('console');
 
@@ -16,9 +16,9 @@ const app = express();
  * Mariadb pool. *
  * ***************/
 const pool = mariadb.createPool({
-    host: 'localhost',
-    user: 'tmp',
-    password: 'Suman@1992',
+    host: process.env.MDB_HOST,
+    user: process.env.MDB_USER,
+    password: process.env.MDB_PASS,
     database: 'sessiondb',
     connectionLimit: 5,
 });
