@@ -29,8 +29,8 @@ const pool = mariadb.createPool({
  ****************************/
 app.use(session({
     store: new MariaDBStore({
-        user: 'tmp',
-        password: 'Suman@1992'
+        user: process.env.MDB_USER,
+        password: process.env.MDB_PASS,
     }),
     secret: 'secret key',
     resave: false,
