@@ -14,3 +14,9 @@ node_modules:   cheerio, express-session-mariadb-store, express-session, express
 *************
 Registration No:    acc00000000000
 Date of Birth:      2021-01-01
+
+*************************************
+* Candidate image location and name *
+*************************************
+Image Path: public/images/candidates
+Image Name: acc00000000000.jpg / acc00000000000.png
