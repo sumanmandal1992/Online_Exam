@@ -101,11 +101,11 @@ app.post('/login', async (req, res) => {
                 if (stdinfo[0] !== undefined && dbdob === htmdob) {
                     req.session.isAuth = true;
 
-                    let photo = path.join('images', (regno + '.jpg'));
+                    let photo = path.join('images/candidates', (regno + '.jpg'));
                     let imgstats;
                     try { imgstats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
                     if (!imgstats.isFile()) {
-                        photo = path.join('images', (regno + '.png'));
+                        photo = path.join('images/candidates', (regno + '.png'));
                         try { imgstats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
                     }
 
@@ -479,11 +479,11 @@ app.get('/exam', async (req, res) => {
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
 
             // Check existance of image file...
-            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (!imgstats.isFile()) {
-                uimg = path.join('images', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
 
@@ -577,11 +577,11 @@ app.post('/exam/prev', async (req, res) => {
 
 
             // Check existance of image file...
-            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (!imgstats.isFile()) {
-                uimg = path.join('images', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             // End checking...
@@ -676,11 +676,11 @@ app.post('/exam/next', async (req, res) => {
 
 
             // Check existance of image file...
-            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (!imgstats.isFile()) {
-                uimg = path.join('images', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             // End checking...
@@ -763,11 +763,11 @@ app.post('/exam/btns', async (req, res) => {
             //console.log(regno[0]);
 
             // Checking existance of file...
-            let uimg = path.join('images', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstat;
             try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (!imgstat.isFile()) {
-                uimg = path.join('images', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             // End checking...
