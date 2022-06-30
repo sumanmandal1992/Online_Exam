@@ -6,8 +6,8 @@ Run this project as "node index.js", the server will be created.
 *************************
 SQL Server: mariadb server
 Database:   sessiondb
-Tables:     session (sid, session, lastSeen), timer(regno, timeSec, loginStat), logged_user (sid, regno), qlist (qid, questions, chA, chB, chC, chD, correct), studInfo(id, name, dob, regno, course)
-node_modules:   cheerio, express-session-mariadb-store, express-session, express, mariadb
+Tables:     session (sid, session, lastSeen), timer(regno, timeSec), loggedUser (sid, regno, loginStat), qlist (qid, questions, chA, chB, chC, chD, correct), std_info(id, name, dob, regno, course)
+node_modules:   cheerio, express-session-mariadb-store, express-session, express, mariadb, dotenv
 
 *************
 * Demo data *
