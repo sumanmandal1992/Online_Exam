@@ -69,13 +69,14 @@ app.get('/', (req, res) => {
  *************************************/
 app.post('/login', async (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
-    const stddb = path.join(__dirname, 'database', 'students.db');
     let docstats;
     try { docstats = fs.statSync(index); } catch (e) { }
 
     const { regno, dob } = req.body;
     const isodob = new Date(dob);
-    const htmdob = isodob.toISOString().split('T')[0];
+    let htmdob;
+    if (!isNaN(isodob.getTime()))
+        htmdob = isodob.toISOString().split('T')[0];
 
     if (docstats !== undefined && docstats.isFile()) {
         let conn;
@@ -449,6 +450,8 @@ function generateBtns(qlen, ansAll) {
  **************************************/
 app.get('/exam', async (req, res) => {
     tracker = 1;
+    //let logstat = 1;
+
     const qlist = path.join(__dirname, 'public', 'qlist.html');
 
 
@@ -456,17 +459,22 @@ app.get('/exam', async (req, res) => {
     try {
         conn = await pool.getConnection();
         const ssn = await conn.query("SELECT session FROM session WHERE sid = ?", [req.sessionID]);
-        const session = JSON.parse(ssn[0].session);
+        let session;
+        if (ssn[0] !== undefined)
+            session = JSON.parse(ssn[0].session);
         const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]); /* 1st question */
         const regno = await conn.query("SELECT * FROM loggedUser WHERE sid = ?", [req.sessionID]);
         const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno[0].regno]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
         const qlen = parseInt(len[0].qlen, 10);
-        let timesec = timer[0].timesec;
+        let timesec;
+        if (timer[0] !== undefined)
+            timesec = timer[0].timesec;
         //console.log(timesec[0].timesec);
 
 
-        if (session.isAuth && regno[0].loggedStats === 1) {
+        if (session.isAuth && (regno[0].loggedStats >= 1 && regno[0].loggedStats <= 5)) {
+            //logstat++;
             // Create temporary answer table in database...
             await conn.query(`CREATE TABLE IF NOT EXISTS ${regno[0].regno}_tmp(
                                 qid INT(3) NOT NULL PRIMARY KEY,
@@ -531,7 +539,7 @@ app.get('/exam', async (req, res) => {
             res.redirect('/');
         }
 
-        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
+        //await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [logstat, regno[0].regno]);
 
     } catch (err) {
         // Manage errors  
@@ -825,7 +833,16 @@ app.post('/exam/btns', async (req, res) => {
 /*******************************************************************
  * Logout from the exam, status will remain saved until next login *
  *******************************************************************/
-app.get('/exam/logout', (req, res) => {
+app.get('/exam/logout', async (req, res) => {
+    let conn;
+    try {
+        conn = await pool.getConnection();
+        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
+    } catch (err) {
+        if (err) console.log(err);
+    } finally {
+        if (conn) conn.end();
+    }
     req.session.destroy();
     res.redirect('/');
 });
@@ -896,6 +913,7 @@ app.get('/exam/end', async (req, res) => {
         conn = await pool.getConnection();
         const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
         await conn.query("DELETE FROM timer WHERE regno = ?", [regno[0].regno]);
+        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
     } finally {
