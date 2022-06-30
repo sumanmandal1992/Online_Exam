@@ -1,3 +1,4 @@
+'use strict';
 const path = require('path');
 const express = require('express');
 const session = require('express-session');
@@ -6,9 +7,6 @@ const MariaDBStore = require('express-session-mariadb-store');
 require('dotenv').config();
 const cheerio = require('cheerio');
 const fs = require('fs');
-const { isMap } = require('util/types');
-const { time } = require('console');
-const { isNullOrUndefined } = require('util');
 
 const app = express();
 
