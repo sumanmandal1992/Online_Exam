@@ -8,6 +8,7 @@ const cheerio = require('cheerio');
 const fs = require('fs');
 const { isMap } = require('util/types');
 const { time } = require('console');
+const { isNullOrUndefined } = require('util');
 
 const app = express();
 
@@ -51,7 +52,7 @@ app.get('/', (req, res) => {
     let filestats;
     try { filestats = fs.statSync(index); } catch (e) { }
 
-    if (filestats.isFile()) {
+    if (filestats !== undefined && filestats.isFile()) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
         res.sendFile(index, (err) => {
@@ -65,9 +66,9 @@ app.get('/', (req, res) => {
 });
 
 
-/************************
- * Gathering login info *
- ************************/
+/*************************************
+ * Collecting ans showing login info *
+ *************************************/
 app.post('/login', async (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
     const stddb = path.join(__dirname, 'database', 'students.db');
@@ -78,7 +79,7 @@ app.post('/login', async (req, res) => {
     const isodob = new Date(dob);
     const htmdob = isodob.toISOString().split('T')[0];
 
-    if (docstats.isFile()) {
+    if (docstats !== undefined && docstats.isFile()) {
         let conn;
         try {
             conn = await pool.getConnection();
@@ -102,11 +103,11 @@ app.post('/login', async (req, res) => {
                     req.session.isAuth = true;
 
                     let photo = path.join('images/candidates', (regno + '.jpg'));
-                    let imgstats;
-                    try { imgstats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
-                    if (!imgstats.isFile()) {
+                    let filestats;
+                    try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
+                    if (filestats === undefined || !filestats.isFile()) {
                         photo = path.join('images/candidates', (regno + '.png'));
-                        try { imgstats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
+                        try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
                     }
 
 
@@ -114,7 +115,7 @@ app.post('/login', async (req, res) => {
                     $('#dob').attr('value', dob);
                     $('#cname').text(stdinfo[0].name);
                     $('#subcode').text(stdinfo[0].course);
-                    if (imgstats.isFile()) $('img').attr('src', photo);
+                    if (filestats !== undefined && filestats.isFile()) $('img').attr('src', photo);
 
                     res.statusCode = 200;
                     res.setHeader('Content-Type', 'text/html');
@@ -141,7 +142,7 @@ app.post('/login', async (req, res) => {
 
                 if (logged_session_id[0] === undefined) {
                     console.log("New session started...");
-                    await conn.query("INSERT INTO loggedUser(sid, regno, loggedStats) VALUES(?, ?, ?)", [req.sessionID, regno, 1]);
+                    await conn.query("INSERT INTO loggedUser VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE regno = ?, loggedStats = ?", [req.sessionID, regno, 1, regno, 1]);
                 } else if (logged_session_id[0].sid !== req.sessionID) {
                     console.log("New session started, you come back...");
                     await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
@@ -482,7 +483,7 @@ app.get('/exam', async (req, res) => {
             let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
-            if (!imgstats.isFile()) {
+            if (imgstats === undefined || !imgstats.isFile()) {
                 uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
@@ -492,7 +493,7 @@ app.get('/exam', async (req, res) => {
             try { docstats = fs.statSync(qlist); } catch (e) { }
             // End checking...
 
-            if (docstats.isFile()) {
+            if (docstats !== undefined && docstats.isFile()) {
                 fs.readFile(qlist, 'utf-8', (err, data) => {
                     if (err) console.log(err);
 
@@ -510,7 +511,7 @@ app.get('/exam', async (req, res) => {
                         $('table').append(designQnsChkd(question, ans));
 
 
-                    if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+                    if (imgstats !== undefined && imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
                     $('#logo').attr('src', '../images/logo.png');
                     $('#regno').text(regno[0].regno);
 
@@ -549,18 +550,18 @@ app.get('/exam', async (req, res) => {
 
 
 
-/**********************
- * Handle back button *
- **********************/
+/************************
+ * Handling prev button *
+ ************************/
 app.post('/exam/prev', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
-    let filestats = false;
+    let filestats;
     try { filestats = fs.statSync(qlist); } catch (e) { }
 
     const { time } = req.body;
 
 
-    if (filestats) {
+    if (filestats !== undefined && filestats.isFile()) {
         if (tracker > 1) --tracker;
         let conn;
         try {
@@ -580,7 +581,7 @@ app.post('/exam/prev', async (req, res) => {
             let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
-            if (!imgstats.isFile()) {
+            if (imgstats === undefined || !imgstats.isFile()) {
                 uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
@@ -595,7 +596,7 @@ app.post('/exam/prev', async (req, res) => {
                 $('#logo').attr('src', '../images/logo.png');
                 $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
                 $('#regno').text(regno[0].regno);
-                if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+                if (imgstats !== undefined && imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
 
 
                 // Desining question and choices for represent.
@@ -635,9 +636,9 @@ app.post('/exam/prev', async (req, res) => {
 
 
 
-/**********************
- * Handle next button *
- **********************/
+/*************************
+ * Handleing next button *
+ *************************/
 app.post('/exam/next', async (req, res) => {
     const qlist = path.join(__dirname, 'public', 'qlist.html');
     let filestats;
@@ -646,7 +647,7 @@ app.post('/exam/next', async (req, res) => {
     const { choice, time } = req.body;
     //console.log('In next: ', choice, time);
 
-    if (filestats.isFile()) {
+    if (filestats !== undefined && filestats.isFile()) {
         let conn;
         try {
             conn = await pool.getConnection();
@@ -679,7 +680,7 @@ app.post('/exam/next', async (req, res) => {
             let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
-            if (!imgstats.isFile()) {
+            if (imgstats === undefined || !imgstats.isFile()) {
                 uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
@@ -694,7 +695,7 @@ app.post('/exam/next', async (req, res) => {
                 $('#logo').attr('src', '../images/logo.png');
                 $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
                 $('#regno').text(regno[0].regno);
-                if (imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
+                if (imgstats !== undefined && imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
 
 
                 // Desining question and choices for represent.
@@ -736,9 +737,9 @@ app.post('/exam/next', async (req, res) => {
 
 
 
-/*******************************
- * Handle button press request *
- *******************************/
+/*********************************
+ * Handling button press request *
+ *********************************/
 app.post('/exam/btns', async (req, res) => {
     // Checking existance of file...
     const qlist = path.join(__dirname, 'public', 'qlist.html');
@@ -748,7 +749,7 @@ app.post('/exam/btns', async (req, res) => {
 
     const { btnval, time } = req.body;
 
-    if (filestats.isFile()) {
+    if (filestats !== undefined && filestats.isFile()) {
         tracker = btnval;
         let conn;
         try {
@@ -766,7 +767,7 @@ app.post('/exam/btns', async (req, res) => {
             let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstat;
             try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
-            if (!imgstat.isFile()) {
+            if (imgstat === undefined || !imgstat.isFile()) {
                 uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
@@ -780,7 +781,7 @@ app.post('/exam/btns', async (req, res) => {
                 const $ = cheerio.load(data);
 
                 $('#logo').attr('src', '../images/logo.png');
-                if (imgstat.isFile()) $('#uimg').attr('src', ('../' + uimg));
+                if (imgstat !== undefined && imgstat.isFile()) $('#uimg').attr('src', ('../' + uimg));
                 $('#regno').text(regno[0].regno);
                 $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
 
@@ -834,9 +835,9 @@ app.get('/exam/logout', (req, res) => {
 
 
 
-/************************
- * Handle submit button *
- ************************/
+/**************************
+ * Handling submit button *
+ **************************/
 app.get('/exam/submit', async (req, res) => {
     let conn;
     try {
@@ -852,9 +853,9 @@ app.get('/exam/submit', async (req, res) => {
     }
 
     const endExam = path.join(__dirname, 'public', 'endExam.html');
-    let filestats = false;
+    let filestats;
     try { filestats = fs.statSync(endExam); } catch (e) { }
-    if (filestats) {
+    if (filestats !== undefined && filestats.isFile()) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
         res.sendFile(endExam, (err) => {
@@ -871,9 +872,9 @@ app.get('/exam/submit', async (req, res) => {
 
 app.get('/exam/autoSubmit', (req, res) => {
     const submit = path.join(__dirname, 'public', 'submit.html')
-    let filestats = false;
+    let filestats;
     try { filestats = fs.statSync(submit) } catch (e0) { }
-    if (filestats) {
+    if (filestats !== undefined && filestats.isFile()) {
         res.statusCode = 200;
         res.setHeader('Content-Type', 'text/html');
         res.sendFile(submit, (err) => {
