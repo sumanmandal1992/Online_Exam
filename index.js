@@ -11,9 +11,9 @@ const fs = require('fs');
 const app = express();
 
 
-/*****************
- * Mariadb pool. *
- * ***************/
+/**************************
+ * Creating mariadb pool. *
+ * ************************/
 const pool = mariadb.createPool({
     host: process.env.MDB_HOST,
     user: process.env.MDB_USER,
@@ -23,9 +23,9 @@ const pool = mariadb.createPool({
 });
 
 
-/****************************
- * Mariadb session storage. *
- ****************************/
+/*************************************
+ * Creating mariadb session storage. *
+ *************************************/
 app.use(session({
     store: new MariaDBStore({
         user: process.env.MDB_USER,
@@ -34,11 +34,19 @@ app.use(session({
     secret: 'secret key',
     resave: false,
     saveUninitialized: false,
-    //cookie: { secure: true }
+    //cookie: { secure: true }  /* Need https server to use secure cookie */
 }));
+
+/********************************
+ * Accessing express middleware *
+ ********************************/
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+/**
+ * Declaring tracker for tracking questions *
+ */
 let tracker = 1;
 
 
@@ -65,13 +73,17 @@ app.get('/', (req, res) => {
 
 
 /*************************************
- * Collecting ans showing login info *
+ * Collecting and showing login info *
  *************************************/
 app.post('/login', async (req, res) => {
     const index = path.join(__dirname, 'public', 'index.html');
+
+    /* Checking existance of file... */
     let docstats;
     try { docstats = fs.statSync(index); } catch (e) { }
+    /* End checking... */
 
+    /* Accessing input data and checking for valid input date */
     const { regno, dob } = req.body;
     const isodob = new Date(dob);
     let htmdob;
@@ -84,7 +96,7 @@ app.post('/login', async (req, res) => {
             conn = await pool.getConnection();
             const stdinfo = await conn.query('SELECT * FROM std_info WHERE reg_no = ?', [regno]);
 
-            // Calculate date
+            /* Calculate date */
             const isodate = new Date(stdinfo[0].dob);
             const year = isodate.getFullYear();
             const month = String(isodate.getMonth() + 1).padStart(2, 0);
@@ -213,7 +225,7 @@ function designQns(question) {
 }
 
 
-// Design questions with checked key...
+/* Design questions with checked key... */
 function designQnsChkd(question, ans) {
     let qns;
     if (ans[0].choice === 'A') {
@@ -379,23 +391,31 @@ function designQnsChkd(question, ans) {
  * Crating buttons...
  **************************/
 function generateBtns(qlen, ansAll) {
-    let btns1 = `<form method="post" action="/exam/btns"><div id="btns1">
+
+    /* Storing answered qid and answered qlen */
+    let indx = 0, qid = [];
+    for (let i = 0; i < qlen; i++) {
+        if (ansAll[i] !== undefined) {
+            if (ansAll[i].choice !== '') {
+                qid.push(ansAll[i].qid);
+                ++indx;
+            }
+        } else {
+            break;
+        }
+    } /* End storing */
+
+
+    let btns1 = `<form method="post" action="/exam/btns">
+                <div id="btns1">
                 <input type="hidden" name="time" id="btnstime" value="">`;
     let btns2 = '<div id="btns2">';
     let btns3 = '<input type="button" id="np" value="Next>>" onclick="NP()">';
-    if (qlen <= 50) {
-        let indx = 0, qid = [];
-        for (let i = 0; i < qlen; i++) {
-            if (ansAll[i] !== undefined) {
-                if (ansAll[i].choice !== '') {
-                    qid.push(ansAll[i].qid);
-                    ++indx;
-                }
-            } else {
-                break;
-            }
-        }
 
+    /* For upto 50 questions */
+    if (qlen <= 50) {
+
+        /* Mark answer key as green */
         let track = 0;
         for (let i = 0; i < qlen; ++i) {
             if (qid[track] === (i + 1)) {
@@ -407,19 +427,11 @@ function generateBtns(qlen, ansAll) {
         }
         btns1 += '</div></form>';
         return btns1;
-    } else {
-        let indx = 0, qid = [];
-        for (let i = 0; i < qlen; i++) {
-            if (ansAll[i] !== undefined) {
-                if (ansAll[i].choice !== '') {
-                    qid.push(ansAll[i].qid);
-                    ++indx;
-                }
-            } else {
-                break;
-            }
-        }
 
+        /* For upto 100 questions */
+    } else {
+
+        /* Mark answered key as green */
         let track = 0;
         for (let i = 0; i < 50; ++i) {
             if (qid[track] === (i + 1)) {
@@ -583,7 +595,7 @@ app.post('/exam/prev', async (req, res) => {
 
 
 
-            // Check existance of image file...
+            /* Check existance of image file... */
             let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
@@ -591,7 +603,7 @@ app.post('/exam/prev', async (req, res) => {
                 uimg = path.join('images/candidates', (regno[0].regno + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
-            // End checking...
+            /* End checking... */
 
 
             fs.readFile(qlist, 'utf-8', (err, data) => {
