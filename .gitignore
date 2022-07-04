@@ -4,3 +4,4 @@ database/
 modules/
 test.js
 public/images/candidates/
+.env
