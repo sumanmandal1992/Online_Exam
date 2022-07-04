@@ -1,5 +1,5 @@
 # Introduction
-### This project have been created using nodejs, javascript, css and html. Run this project as "node index.js", the server will be created. You have to have nodejs and mariadb installed in your machine.
+### This is a personal project for learning and testing. This project have been created using nodejs, javascript, css and html. Run this project as "node index.js", the server will be created. You have to have nodejs and mariadb installed in your machine.
 
 # Requirments
 
@@ -7,6 +7,7 @@
 * Database:   sessiondb
 * Tables:     session (sid, session, lastSeen), timer(regno, timeSec), loggedUser (sid, regno, loginStat), qlist (qid, questions, chA, chB, chC, chD, correct), std_info(id, name, dob, regno, course)
 * node_modules:   cheerio, express-session-mariadb-store, express-session, express, mariadb, dotenv
+* Note: Create a '.env' file and store your database information. Such as 'MDB_HOST = host_name, MDB_USER = database_user_name, MDB_PASS = database_password'
 
 # Demo data
 
