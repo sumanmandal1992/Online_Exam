@@ -7,7 +7,6 @@ const MariaDBStore = require('express-session-mariadb-store');
 require('dotenv').config();
 const cheerio = require('cheerio');
 const fs = require('fs');
-
 const app = express();
 
 
