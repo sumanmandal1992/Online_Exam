@@ -1,5 +1,5 @@
 # Introduction
-### This is a personal project for learning and testing. This project have been created using nodejs, javascript, css and html. Run this project as "node index.js", the server will be created. You have to have nodejs and mariadb installed in your machine.
+### This is a personal project for learning and testing. This project has been created using nodejs, javascript, css and html. Run this project as "node index.js", the server will be created. You have to have nodejs and mariadb installed in your machine.
 
 # Requirments
 
