@@ -1,13 +1,18 @@
 'use strict';
-const path = require('path');
-const express = require('express');
-const session = require('express-session');
-const mariadb = require('mariadb');
-const MariaDBStore = require('express-session-mariadb-store');
-require('dotenv').config();
-const cheerio = require('cheerio');
-const fs = require('fs');
+import path from 'path';
+import express from 'express';
+import session from 'express-session';
+import mariadb from 'mariadb';
+import MariaDBStore from 'express-session-mariadb-store';
+import dotenv from 'dotenv';
+import * as cheerio from 'cheerio';
+import fs from 'fs';
+import url from 'url';
+dotenv.config();
 const app = express();
+const __filename = url.fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 
 
 /**************************
@@ -17,7 +22,7 @@ const pool = mariadb.createPool({
     host: process.env.MDB_HOST,
     user: process.env.MDB_USER,
     password: process.env.MDB_PASS,
-    database: 'sessiondb',
+    database: process.env.MDB_DB,
     connectionLimit: 5,
 });
 
@@ -93,14 +98,17 @@ app.post('/login', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            const stdinfo = await conn.query('SELECT * FROM std_info WHERE reg_no = ?', [regno]);
+            const stdinfo = await conn.query('SELECT * FROM std_info WHERE regno = ?', [regno]);
 
             /* Calculate date */
-            const isodate = new Date(stdinfo[0].dob);
-            const year = isodate.getFullYear();
-            const month = String(isodate.getMonth() + 1).padStart(2, 0);
-            const day = String(isodate.getDate()).padStart(2, 0);
-            const dbdob = `${year}-${month}-${day}`;
+		let isodate, year, month, day, dbdob;
+		if(stdinfo[0] != undefined) {
+		     isodate = new Date(stdinfo[0].dob);
+		     year = isodate.getFullYear();
+		     month = String(isodate.getMonth() + 1).padStart(2, 0);
+		     day = String(isodate.getDate()).padStart(2, 0);
+		     dbdob = `${year}-${month}-${day}`;
+		}
             //console.log("Date: ", dbdob);
             // End date calculateion
 
@@ -152,14 +160,14 @@ app.post('/login', async (req, res) => {
 
                 if (logged_session_id[0] === undefined) {
                     console.log("New session started...");
-                    await conn.query("INSERT INTO loggedUser VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE regno = ?, loggedStats = ?", [req.sessionID, regno, 1, regno, 1]);
+                    await conn.query("INSERT INTO loggedUser VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE regno = ?, loginStat = ?", [req.sessionID, regno, 1, regno, 1]);
                 } else if (logged_session_id[0].sid !== req.sessionID) {
                     console.log("New session started, you come back...");
                     await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
-                    await conn.query("UPDATE loggedUser SET sid = ?, loggedStats = ? WHERE regno = ?", [req.sessionID, 1, regno])
+                    await conn.query("UPDATE loggedUser SET sid = ?, loginStat = ? WHERE regno = ?", [req.sessionID, 1, regno])
                 } else {
                     console.log("Existing session...");
-                    await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [1, regno]);
+                    await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [1, regno]);
                 }
             }
 
@@ -484,7 +492,7 @@ app.get('/exam', async (req, res) => {
         //console.log(timesec[0].timesec);
 
 
-        if (session.isAuth && (regno[0].loggedStats >= 1 && regno[0].loggedStats <= 5)) {
+        if (session.isAuth && (regno[0].loginStat >= 1 && regno[0].loginStat <= 5)) {
             //logstat++;
             // Create temporary answer table in database...
             await conn.query(`CREATE TABLE IF NOT EXISTS ${regno[0].regno}_tmp(
@@ -550,7 +558,7 @@ app.get('/exam', async (req, res) => {
             res.redirect('/');
         }
 
-        //await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [logstat, regno[0].regno]);
+        //await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [logstat, regno[0].regno]);
 
     } catch (err) {
         // Manage errors  
@@ -848,7 +856,7 @@ app.get('/exam/logout', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
+        await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
     } finally {
@@ -924,7 +932,7 @@ app.get('/exam/end', async (req, res) => {
         conn = await pool.getConnection();
         const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
         await conn.query("DELETE FROM timer WHERE regno = ?", [regno[0].regno]);
-        await conn.query("UPDATE loggedUser SET loggedStats = ? WHERE regno = ?", [0, regno[0].regno]);
+        await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
     } finally {
