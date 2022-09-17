@@ -41,6 +41,7 @@ app.use(session({
     //cookie: { secure: true }  /* Need https server to use secure cookie */
 }));
 
+
 /********************************
  * Accessing express middleware *
  ********************************/
@@ -193,7 +194,7 @@ app.post('/login', async (req, res) => {
  **************************/
 function designQns(question) {
     const qns = `<tr>
-                    <td>${question[0].q_id}.</td>
+                    <td>${question[0].qid}.</td>
                     <td>${question[0].questions}</td>
                 </tr>
                 <tr>
@@ -232,12 +233,14 @@ function designQns(question) {
 }
 
 
-/* Design questions with checked key... */
+/****************************************
+ * Design questions with checked key... *
+ ****************************************/
 function designQnsChkd(question, ans) {
     let qns;
     if (ans[0].choice === 'A') {
         qns = `<tr>
-                    <td>${question[0].q_id}.</td>
+                    <td>${question[0].qid}.</td>
                     <td>${question[0].questions}</td>
                 </tr>
                 <tr>
@@ -274,7 +277,7 @@ function designQnsChkd(question, ans) {
                 </tr>`;
     } else if (ans[0].choice === 'B') {
         qns = `<tr>
-                    <td>${question[0].q_id}.</td>
+                    <td>${question[0].qid}.</td>
                     <td>${question[0].questions}</td>
                 </tr>
                 <tr>
@@ -311,7 +314,7 @@ function designQnsChkd(question, ans) {
                 </tr>`;
     } else if (ans[0].choice === 'C') {
         qns = `<tr>
-                    <td>${question[0].q_id}.</td>
+                    <td>${question[0].qid}.</td>
                     <td>${question[0].questions}</td>
                 </tr>
                 <tr>
@@ -348,7 +351,7 @@ function designQnsChkd(question, ans) {
                 </tr>`;
     } else if (ans[0].choice === 'D') {
         qns = `<tr>
-                    <td>${question[0].q_id}.</td>
+                    <td>${question[0].qid}.</td>
                     <td>${question[0].questions}</td>
                 </tr>
                 <tr>
@@ -390,13 +393,12 @@ function designQnsChkd(question, ans) {
 }
 
 
-/*************************
- * 
- * @param {*} qlen 
- * @param {*} ansAll 
- * @returns 
- * Crating buttons...
- **************************/
+/************************
+ * @param {*} qlen 	*
+ * @param {*} ansAll 	*
+ * @returns 		*
+ * Crating buttons... 	*
+ ************************/
 function generateBtns(qlen, ansAll) {
 
     /* Storing answered qid and answered qlen */
@@ -481,7 +483,7 @@ app.get('/exam', async (req, res) => {
         let session;
         if (ssn[0] !== undefined)
             session = JSON.parse(ssn[0].session);
-        const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]); /* 1st question */
+        const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]); /* 1st question */
         const regno = await conn.query("SELECT * FROM loggedUser WHERE sid = ?", [req.sessionID]);
         const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno[0].regno]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
@@ -489,7 +491,7 @@ app.get('/exam', async (req, res) => {
         let timesec;
         if (timer[0] !== undefined)
             timesec = timer[0].timesec;
-        //console.log(timesec[0].timesec);
+        //console.log(timer[0]);
 
 
         if (session.isAuth && (regno[0].loginStat >= 1 && regno[0].loginStat <= 5)) {
@@ -525,9 +527,10 @@ app.get('/exam', async (req, res) => {
                     const $ = cheerio.load(data);
                     if (timesec < 0) timesec = 0;
                     if (timer[0] !== undefined) $('#time').attr('value', timesec);
-                    $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                    if (question[0] !== undefined) $('.qstat').text(`Question ${question[0].qid} of ${qlen}`);
 
                     // Desining question and choices for represent.
+			if(question[0] !== undefined)
                     if (ans[0] === undefined)
                         $('table').append(designQns(question));
                     else if (ans[0].choice === '')
@@ -591,7 +594,7 @@ app.post('/exam/prev', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
+            const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
@@ -619,7 +622,7 @@ app.post('/exam/prev', async (req, res) => {
                 const $ = cheerio.load(data);
 
                 $('#logo').attr('src', '../images/logo.png');
-                $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                $('.qstat').text(`Question ${question[0].qid} of ${qlen}`);
                 $('#regno').text(regno[0].regno);
                 if (imgstats !== undefined && imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
 
@@ -680,7 +683,7 @@ app.post('/exam/next', async (req, res) => {
             const dbCh = await conn.query(`SELECT choice FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
-            const correctCh = await conn.query("SELECT correct FROM qlist WHERE q_id = ?", [tracker]);
+            const correctCh = await conn.query("SELECT correct FROM qlist WHERE qid = ?", [tracker]);
 
             await conn.query("UPDATE timer SET timesec = ? WHERE regno = ?", [time, regno[0].regno]);
 
@@ -694,7 +697,7 @@ app.post('/exam/next', async (req, res) => {
                 await conn.query(`UPDATE ${regno[0].regno}_tmp SET choice = ? WHERE qid = ?`, [ch, tracker]);
 
             if (tracker < qlen) ++tracker;
-            const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
+            const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
 
@@ -718,7 +721,7 @@ app.post('/exam/next', async (req, res) => {
                 const $ = cheerio.load(data);
 
                 $('#logo').attr('src', '../images/logo.png');
-                $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                $('.qstat').text(`Question ${question[0].qid} of ${qlen}`);
                 $('#regno').text(regno[0].regno);
                 if (imgstats !== undefined && imgstats.isFile()) $('#uimg').attr('src', ('../' + uimg));
 
@@ -780,7 +783,7 @@ app.post('/exam/btns', async (req, res) => {
         try {
             conn = await pool.getConnection();
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
-            const question = await conn.query("SELECT * FROM qlist WHERE q_id = ?", [tracker]);
+            const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
@@ -808,7 +811,7 @@ app.post('/exam/btns', async (req, res) => {
                 $('#logo').attr('src', '../images/logo.png');
                 if (imgstat !== undefined && imgstat.isFile()) $('#uimg').attr('src', ('../' + uimg));
                 $('#regno').text(regno[0].regno);
-                $('.qstat').text(`Question ${question[0].q_id} of ${qlen}`);
+                $('.qstat').text(`Question ${question[0].qid} of ${qlen}`);
 
                 // Desiging question for display
                 if (ans[0] === undefined) {
@@ -903,7 +906,9 @@ app.get('/exam/submit', async (req, res) => {
 });
 
 
-
+/***************************************
+ * Auto submit triggered after timeout *
+ ***************************************/
 app.get('/exam/autoSubmit', (req, res) => {
     const submit = path.join(__dirname, 'public', 'submit.html')
     let filestats;
