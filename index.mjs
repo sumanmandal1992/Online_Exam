@@ -19,11 +19,11 @@ const __dirname = path.dirname(__filename);
  * Creating mariadb pool. *
  * ************************/
 const pool = mariadb.createPool({
-    host: process.env.MDB_HOST,
-    user: process.env.MDB_USER,
-    password: process.env.MDB_PASS,
-    database: process.env.MDB_DB,
-    connectionLimit: 5,
+	host: process.env.MDB_HOST,
+	user: process.env.MDB_USER,
+	password: process.env.MDB_PASS,
+	database: process.env.MDB_DB,
+	connectionLimit: 5,
 });
 
 
@@ -31,14 +31,14 @@ const pool = mariadb.createPool({
  * Creating mariadb session storage. *
  *************************************/
 app.use(session({
-    store: new MariaDBStore({
-        user: process.env.MDB_USER,
-        password: process.env.MDB_PASS,
-    }),
-    secret: 'secret key',
-    resave: false,
-    saveUninitialized: false,
-    //cookie: { secure: true }  /* Need https server to use secure cookie */
+	store: new MariaDBStore({
+		user: process.env.MDB_USER,
+		password: process.env.MDB_PASS,
+	}),
+	secret: 'secret key',
+	resave: false,
+	saveUninitialized: false,
+	//cookie: { secure: true }  /* Need https server to use secure cookie */
 }));
 
 
@@ -49,31 +49,26 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-/**
- * Declaring tracker for tracking questions *
- */
-let tracker = 1;
-
 
 /*******************
  * Send index page *
  *******************/
-app.get('/', (req, res) => {
-    const index = path.join(__dirname, 'public', 'index.html');
-    let filestats;
-    try { filestats = fs.statSync(index); } catch (e) { }
+app.get('/', (_, res) => {
+	const index = path.join(__dirname, 'public', 'index.html');
+	let filestats;
+	try { filestats = fs.statSync(index); } catch (e) { }
 
-    if (filestats !== undefined && filestats.isFile()) {
-        res.statusCode = 200;
-        res.setHeader('Content-Type', 'text/html');
-        res.sendFile(index, (err) => {
-            if (err) console.log(err);
-        });
-    } else {
-        res.statusCode = 404;
-        res.setHeader('Content-Type', 'text/html');
-        res.send('Document not found...');
-    }
+	if (filestats !== undefined && filestats.isFile()) {
+		res.statusCode = 200;
+		res.setHeader('Content-Type', 'text/html');
+		res.sendFile(index, (err) => {
+			if (err) console.log(err);
+		});
+	} else {
+		res.statusCode = 404;
+		res.setHeader('Content-Type', 'text/html');
+		res.send('Document not found...');
+	}
 });
 
 
@@ -81,110 +76,113 @@ app.get('/', (req, res) => {
  * Collecting and showing login info *
  *************************************/
 app.post('/login', async (req, res) => {
-    const index = path.join(__dirname, 'public', 'index.html');
+	const index = path.join(__dirname, 'public', 'index.html');
 
-    /* Checking existance of file... */
-    let docstats;
-    try { docstats = fs.statSync(index); } catch (e) { }
-    /* End checking... */
+	/* Checking existance of file... */
+	let docstats;
+	try { docstats = fs.statSync(index); } catch (e) { }
+	/* End checking... */
 
-    /* Accessing input data and checking for valid input date */
-    const { regno, dob } = req.body;
-    const isodob = new Date(dob);
-    let htmdob;
-    if (!isNaN(isodob.getTime()))
-        htmdob = isodob.toISOString().split('T')[0];
+	/* Accessing input data and checking for valid input date */
+	const { regno, dob } = req.body;
+	const isodob = new Date(dob);
+	let inputdob;
+	if (!isNaN(isodob.getTime()))
+	inputdob = isodob.toISOString().split('T')[0];
 
-    if (docstats !== undefined && docstats.isFile()) {
-        let conn;
-        try {
-            conn = await pool.getConnection();
-            const stdinfo = await conn.query('SELECT * FROM std_info WHERE regno = ?', [regno]);
+	if (docstats !== undefined && docstats.isFile()) {
+		let conn;
+		try {
+			conn = await pool.getConnection();
+			const stdinfo = await conn.query('SELECT * FROM std_info WHERE regno = ?', [regno]);
+			const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno]);
+			if(qtracker[0] === undefined)
+				await conn.query('INSERT INTO qtracker VALUES(?, ?)', [regno, 1]);
 
-            /* Calculate date */
-		let isodate, year, month, day, dbdob;
-		if(stdinfo[0] != undefined) {
-		     isodate = new Date(stdinfo[0].dob);
-		     year = isodate.getFullYear();
-		     month = String(isodate.getMonth() + 1).padStart(2, 0);
-		     day = String(isodate.getDate()).padStart(2, 0);
-		     dbdob = `${year}-${month}-${day}`;
+			/* Calculate date */
+			let isodate, year, month, day, dbdob;
+			if(stdinfo[0] != undefined) {
+				isodate = new Date(stdinfo[0].dob);
+				year = isodate.getFullYear();
+				month = String(isodate.getMonth() + 1).padStart(2, 0);
+				day = String(isodate.getDate()).padStart(2, 0);
+				dbdob = `${year}-${month}-${day}`;
+			}
+			//console.log("Date: ", dbdob);
+			// End date calculateion
+
+			fs.readFile(index, 'utf-8', (err, data) => {
+				if (err) console.log(err);
+
+				const $ = cheerio.load(data);
+
+				if (stdinfo[0] !== undefined && dbdob === inputdob) {
+					req.session.isAuth = true;
+
+					let photo = path.join('images/candidates', (regno + '.jpg'));
+					let filestats;
+					try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
+					if (filestats === undefined || !filestats.isFile()) {
+						photo = path.join('images/candidates', (regno + '.png'));
+						try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
+					}
+
+
+					$('#regno').attr('value', regno);
+					$('#dob').attr('value', dob);
+					$('#cname').text(stdinfo[0].name);
+					$('#subcode').text(stdinfo[0].course);
+					if (filestats !== undefined && filestats.isFile()) $('img').attr('src', photo);
+
+					res.statusCode = 200;
+					res.setHeader('Content-Type', 'text/html');
+					res.send($.html());
+
+				} else {
+					$('.regwarn').append(`<label for="warning" 
+						    style="color: red; font-weight: bold; font-size: 27px;">&otimes;</label>`);
+					$('.dobwarn').append(`<label for="warning"
+						    style="color: red; font-weight: bold; font-size: 27px;">&otimes;</label>`);
+					$('#msg').text("Registration number or date of birth mismatch.");
+					res.statusCode = 200;
+					res.setHeader('Content-Type', 'text/html');
+					res.send($.html());
+				}
+
+			});
+
+			if (req.sessionID.length > 0) {
+				const logged_session_id = await conn.query("SELECT sid FROM loggedUser WHERE regno = ?", [regno]);
+				const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno]);
+				if (timer[0] === undefined)
+				await conn.query("INSERT INTO timer VALUES(?, ?)", [regno, 3600]);
+
+				if (logged_session_id[0] === undefined) {
+					console.log("New session started...");
+					await conn.query("INSERT INTO loggedUser VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE regno = ?, loginStat = ?", [req.sessionID, regno, 1, regno, 1]);
+				} else if (logged_session_id[0].sid !== req.sessionID) {
+					console.log("New session started, you come back...");
+					await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
+					await conn.query("UPDATE loggedUser SET sid = ?, loginStat = ? WHERE regno = ?", [req.sessionID, 1, regno])
+				} else {
+					console.log("Existing session...");
+					await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [1, regno]);
+				}
+			}
+
+		} catch (err) {
+			if (err) console.log(err);
+
+			res.redirect('/');
+
+		} finally {
+			if (conn) conn.end();
 		}
-            //console.log("Date: ", dbdob);
-            // End date calculateion
-
-            fs.readFile(index, 'utf-8', (err, data) => {
-                if (err) console.log(err);
-
-                const $ = cheerio.load(data);
-
-                if (stdinfo[0] !== undefined && dbdob === htmdob) {
-                    req.session.isAuth = true;
-
-                    let photo = path.join('images/candidates', (regno + '.jpg'));
-                    let filestats;
-                    try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
-                    if (filestats === undefined || !filestats.isFile()) {
-                        photo = path.join('images/candidates', (regno + '.png'));
-                        try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
-                    }
-
-
-                    $('#regno').attr('value', regno);
-                    $('#dob').attr('value', dob);
-                    $('#cname').text(stdinfo[0].name);
-                    $('#subcode').text(stdinfo[0].course);
-                    if (filestats !== undefined && filestats.isFile()) $('img').attr('src', photo);
-
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'text/html');
-                    res.send($.html());
-
-                } else {
-                    $('.regwarn').append(`<label for="warning" 
-                                    style="color: red; font-weight: bold; font-size: 27px;">&otimes;</label>`);
-                    $('.dobwarn').append(`<label for="warning"
-                                    style="color: red; font-weight: bold; font-size: 27px;">&otimes;</label>`);
-                    $('#msg').text("Registration number or date of birth mismatch.");
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'text/html');
-                    res.send($.html());
-                }
-
-            });
-
-            if (req.sessionID.length > 0) {
-                const logged_session_id = await conn.query("SELECT sid FROM loggedUser WHERE regno = ?", [regno]);
-                const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno]);
-                if (timer[0] === undefined)
-                    await conn.query("INSERT INTO timer VALUES(?, ?)", [regno, 3600]);
-
-                if (logged_session_id[0] === undefined) {
-                    console.log("New session started...");
-                    await conn.query("INSERT INTO loggedUser VALUES(?, ?, ?) ON DUPLICATE KEY UPDATE regno = ?, loginStat = ?", [req.sessionID, regno, 1, regno, 1]);
-                } else if (logged_session_id[0].sid !== req.sessionID) {
-                    console.log("New session started, you come back...");
-                    await conn.query("DELETE FROM session WHERE sid = ?", [logged_session_id[0].sid]);
-                    await conn.query("UPDATE loggedUser SET sid = ?, loginStat = ? WHERE regno = ?", [req.sessionID, 1, regno])
-                } else {
-                    console.log("Existing session...");
-                    await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [1, regno]);
-                }
-            }
-
-        } catch (err) {
-            if (err) console.log(err);
-
-            res.redirect('/');
-
-        } finally {
-            if (conn) conn.end();
-        }
-    } else {
-        res.statusCode = 404;
-        res.setHeader('Content-Type', 'text/html');
-        res.send('Page not found...');
-    }
+	} else {
+		res.statusCode = 404;
+		res.setHeader('Content-Type', 'text/html');
+		res.send('Page not found...');
+	}
 });
 
 
@@ -193,43 +191,43 @@ app.post('/login', async (req, res) => {
  * Designing questions... *
  **************************/
 function designQns(question) {
-    const qns = `<tr>
-                    <td>${question[0].qid}.</td>
-                    <td>${question[0].questions}</td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <label for="chA">A)</label>
-                        <input type="radio" name="choice" value="A">
-                        ${question[0].chA}
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <label for="chB">B)</label>
-                        <input type="radio" name="choice" value="B">
-                        ${question[0].chB}
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td>
-                        <label for="chC">C)</label>
-                        <input type="radio" name="choice" value="C">
-                        ${question[0].chC}
-                    </td>
-                </tr>
-                <tr>
-                    <td></td>
-                    <td> 
-                        <label for="chD">D)</label>
-                        <input type="radio" name="choice" value="D">
-                        ${question[0].chD}
-                    </td>
-                </tr>`;
-    return qns;
+	const qns = `<tr>
+					<td>${question[0].qid}.</td>
+					<td>${question[0].questions}</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td>
+						<label for="chA">A)</label>
+						<input type="radio" name="choice" value="A">
+						${question[0].chA}
+					</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td>
+						<label for="chB">B)</label>
+						<input type="radio" name="choice" value="B">
+						${question[0].chB}
+					</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td>
+						<label for="chC">C)</label>
+						<input type="radio" name="choice" value="C">
+						${question[0].chC}
+					</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td> 
+						<label for="chD">D)</label>
+						<input type="radio" name="choice" value="D">
+						${question[0].chD}
+					</td>
+				</tr>`;
+	return qns;
 }
 
 
@@ -470,8 +468,6 @@ function generateBtns(qlen, ansAll) {
  * Check login session and start exam *
  **************************************/
 app.get('/exam', async (req, res) => {
-    tracker = 1;
-    //let logstat = 1;
 
     const qlist = path.join(__dirname, 'public', 'qlist.html');
 
@@ -483,8 +479,9 @@ app.get('/exam', async (req, res) => {
         let session;
         if (ssn[0] !== undefined)
             session = JSON.parse(ssn[0].session);
-        const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]); /* 1st question */
         const regno = await conn.query("SELECT * FROM loggedUser WHERE sid = ?", [req.sessionID]);
+		const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
+        const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [qtracker[0].qid]); /* 1st question */
         const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno[0].regno]);
         const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
         const qlen = parseInt(len[0].qlen, 10);
@@ -503,7 +500,7 @@ app.get('/exam', async (req, res) => {
                                 correct CHAR(1) NOT NULL)
                             `);
             // Query for answer key...
-            const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
+            const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [qtracker[0].qid]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
 
             // Check existance of image file...
@@ -589,18 +586,22 @@ app.post('/exam/prev', async (req, res) => {
     const { time } = req.body;
 
 
+	let tracker;
     if (filestats !== undefined && filestats.isFile()) {
-        if (tracker > 1) --tracker;
         let conn;
         try {
             conn = await pool.getConnection();
-            const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+			const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
+			if(qtracker[0].qid > 1)
+				tracker = qtracker[0].qid - 1;
+            const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
 
+			await conn.query('UPDATE qtracker SET qid = ? WHERE regno = ?', [tracker, regno[0].regno]);
             await conn.query("UPDATE timer SET timesec = ? WHERE regno = ?", [time, regno[0].regno]);
 
 
@@ -680,6 +681,8 @@ app.post('/exam/next', async (req, res) => {
         try {
             conn = await pool.getConnection();
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+			const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
+			let tracker = qtracker[0].qid;
             const dbCh = await conn.query(`SELECT choice FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
@@ -697,6 +700,7 @@ app.post('/exam/next', async (req, res) => {
                 await conn.query(`UPDATE ${regno[0].regno}_tmp SET choice = ? WHERE qid = ?`, [ch, tracker]);
 
             if (tracker < qlen) ++tracker;
+			await conn.query('UPDATE qtracker SET qid = ? WHERE regno = ?', [tracker, regno[0].regno]);
             const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const ans = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
@@ -778,11 +782,12 @@ app.post('/exam/btns', async (req, res) => {
     const { btnval, time } = req.body;
 
     if (filestats !== undefined && filestats.isFile()) {
-        tracker = btnval;
+        let tracker = btnval;
         let conn;
         try {
             conn = await pool.getConnection();
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+			await conn.query('UPDATE qtracker SET qid = ? WhERE regno = ?', [tracker, regno[0].regno]);
             const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
             const qlen = parseInt(len[0].qlen, 10);
@@ -859,6 +864,7 @@ app.get('/exam/logout', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
+        const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
         await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
@@ -909,7 +915,7 @@ app.get('/exam/submit', async (req, res) => {
 /***************************************
  * Auto submit triggered after timeout *
  ***************************************/
-app.get('/exam/autoSubmit', (req, res) => {
+app.get('/exam/autoSubmit', (_, res) => {
     const submit = path.join(__dirname, 'public', 'submit.html')
     let filestats;
     try { filestats = fs.statSync(submit) } catch (e0) { }

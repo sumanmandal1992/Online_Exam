@@ -5,7 +5,7 @@
 
 * SQL Server: mariadb server
 * Database:   sessiondb
-* Tables:     session (sid, session, lastSeen), timer(regno, timesec), loggedUser (sid, regno, loginStat), qlist (qid, questions, chA, chB, chC, chD, correct), std_info(id, name, dob, regno, course)
+* Tables:     session (sid, session, lastSeen), timer(regno, timesec), loggedUser (sid, regno, loginStat), qlist (qid, questions, chA, chB, chC, chD, correct), std_info(id, name, dob, regno, course), qtracker(regno, qid)
 * node_modules:   cheerio, express-session-mariadb-store, express-session, express, mariadb, dotenv
 * Note: Create a '.env' file and store your database information. Such as 'MDB_HOST = host_name, MDB_USER = database_user_name, MDB_PASS = database_password'
 
