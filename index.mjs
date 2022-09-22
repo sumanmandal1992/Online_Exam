@@ -60,7 +60,8 @@ app.get('/', (_, res) => {
 
 	if (filestats !== undefined && filestats.isFile()) {
 		res.statusCode = 200;
-		res.setHeader('Content-Type', 'text/html');
+		if(!res.hasHeader('Content-Type'))
+			res.setHeader('Content-Type', 'text/html');
 		res.sendFile(index, (err) => {
 			if (err) console.log(err);
 		});
@@ -117,13 +118,13 @@ app.post('/login', async (req, res) => {
 				const $ = cheerio.load(data);
 
 				if (stdinfo[0] !== undefined && dbdob === inputdob) {
-					req.session.isAuth = true;
 
-					let photo = path.join('images/candidates', (regno + '.jpg'));
+					req.session.isAuth = true;
+					let photo = path.join('images/candidates', (stdinfo[0].id + '.jpg'));
 					let filestats;
 					try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
 					if (filestats === undefined || !filestats.isFile()) {
-						photo = path.join('images/candidates', (regno + '.png'));
+						photo = path.join('images/candidates', (stdinfo[0].id + '.png'));
 						try { filestats = fs.statSync(path.join(__dirname, 'public', photo)); } catch (e) { }
 					}
 
@@ -135,8 +136,10 @@ app.post('/login', async (req, res) => {
 					if (filestats !== undefined && filestats.isFile()) $('img').attr('src', photo);
 
 					res.statusCode = 200;
-					res.setHeader('Content-Type', 'text/html');
-					res.send($.html());
+					if(!res.hasHeader('Content-Type')){
+						res.setHeader('Content-Type', 'text/html');
+						res.send($.html());
+					}
 
 				} else {
 					$('.regwarn').append(`<label for="warning" 
@@ -145,7 +148,8 @@ app.post('/login', async (req, res) => {
 						    style="color: red; font-weight: bold; font-size: 27px;">&otimes;</label>`);
 					$('#msg').text("Registration number or date of birth mismatch.");
 					res.statusCode = 200;
-					res.setHeader('Content-Type', 'text/html');
+					if(!res.hasHeader('Content-Type'))
+						res.setHeader('Content-Type', 'text/html');
 					res.send($.html());
 				}
 
@@ -173,7 +177,10 @@ app.post('/login', async (req, res) => {
 		} catch (err) {
 			if (err) console.log(err);
 
-			res.redirect('/');
+			if(res.hasHeader('Content-Type'))
+				res.end("Already logged in. Logout first...");
+			else
+				res.redirect('/');
 
 		} finally {
 			if (conn) conn.end();
@@ -480,6 +487,7 @@ app.get('/exam', async (req, res) => {
         if (ssn[0] !== undefined)
             session = JSON.parse(ssn[0].session);
         const regno = await conn.query("SELECT * FROM loggedUser WHERE sid = ?", [req.sessionID]);
+		const stdinfo = await conn.query('SELECT id FROM std_info WHERE regno = ?', [regno[0].regno]);
 		const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
         const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [qtracker[0].qid]); /* 1st question */
         const timer = await conn.query("SELECT * FROM timer WHERE regno = ?", [regno[0].regno]);
@@ -504,11 +512,11 @@ app.get('/exam', async (req, res) => {
             const ansAll = await conn.query(`SELECT * FROM ${regno[0].regno}_tmp ORDER BY qid`);
 
             // Check existance of image file...
-            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (stdinfo[0].id + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (imgstats === undefined || !imgstats.isFile()) {
-                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (stdinfo[0].id + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
 
@@ -591,7 +599,8 @@ app.post('/exam/prev', async (req, res) => {
         let conn;
         try {
             conn = await pool.getConnection();
-            const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+            const regno = await conn.query('SELECT regno FROM loggedUser WHERE sid = ?', [req.sessionID]);
+			const stdinfo = await conn.query('SELECT id FROM std_info WHERE regno = ?', [regno[0].regno]);
 			const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
 			if(qtracker[0].qid > 1)
 				tracker = qtracker[0].qid - 1;
@@ -605,13 +614,12 @@ app.post('/exam/prev', async (req, res) => {
             await conn.query("UPDATE timer SET timesec = ? WHERE regno = ?", [time, regno[0].regno]);
 
 
-
             /* Check existance of image file... */
-            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (stdinfo[0].id + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (imgstats === undefined || !imgstats.isFile()) {
-                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (stdinfo[0].id + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             /* End checking... */
@@ -681,6 +689,7 @@ app.post('/exam/next', async (req, res) => {
         try {
             conn = await pool.getConnection();
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+			const stdinfo = await conn.query('SELECT id FROM std_info WHERE regno = ?', [regno[0].regno]);
 			const qtracker = await conn.query('SELECT * FROM qtracker WHERE regno = ?', [regno[0].regno]);
 			let tracker = qtracker[0].qid;
             const dbCh = await conn.query(`SELECT choice FROM ${regno[0].regno}_tmp WHERE qid = ?`, [tracker]);
@@ -709,11 +718,11 @@ app.post('/exam/next', async (req, res) => {
 
 
             // Check existance of image file...
-            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (stdinfo[0].id + '.jpg'));
             let imgstats;
             try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (imgstats === undefined || !imgstats.isFile()) {
-                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (stdinfo[0].id + '.png'));
                 try { imgstats = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             // End checking...
@@ -763,7 +772,7 @@ app.post('/exam/next', async (req, res) => {
     } else {
         res.statusCode = 404;
         res.setHeader('Content-Type', 'text/html');
-        res.send("Next button Page not found...");
+        res.send("Page not found...");
     }
 });
 
@@ -787,6 +796,7 @@ app.post('/exam/btns', async (req, res) => {
         try {
             conn = await pool.getConnection();
             const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+			const stdinfo = await conn.query('SELECT id FROM std_info WHERE regno = ?', [regno[0].regno]);
 			await conn.query('UPDATE qtracker SET qid = ? WhERE regno = ?', [tracker, regno[0].regno]);
             const question = await conn.query("SELECT * FROM qlist WHERE qid = ?", [tracker]);
             const len = await conn.query("SELECT COUNT(*) AS qlen FROM qlist");
@@ -797,11 +807,11 @@ app.post('/exam/btns', async (req, res) => {
             //console.log(regno[0]);
 
             // Checking existance of file...
-            let uimg = path.join('images/candidates', (regno[0].regno + '.jpg'));
+            let uimg = path.join('images/candidates', (stdinfo[0].id + '.jpg'));
             let imgstat;
             try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             if (imgstat === undefined || !imgstat.isFile()) {
-                uimg = path.join('images/candidates', (regno[0].regno + '.png'));
+                uimg = path.join('images/candidates', (stdinfo[0].id + '.png'));
                 try { imgstat = fs.statSync(path.join(__dirname, 'public', uimg)); } catch (e) { }
             }
             // End checking...
@@ -864,7 +874,7 @@ app.get('/exam/logout', async (req, res) => {
     let conn;
     try {
         conn = await pool.getConnection();
-        const regno = await conn.query("SELECT regno FROM loggedUser WHERE sid = ?", [req.sessionID]);
+        const regno = await conn.query('SELECT regno FROM loggedUser WHERE sid = ?', [req.sessionID]);
         await conn.query("UPDATE loggedUser SET loginStat = ? WHERE regno = ?", [0, regno[0].regno]);
     } catch (err) {
         if (err) console.log(err);
